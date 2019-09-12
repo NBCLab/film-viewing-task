@@ -47,7 +47,7 @@ if __name__ == '__main__':
     config_df = pd.read_csv(config_file, sep='\t')
     file_ = config_df.loc[(config_df['session'] == int(exp_info['session'])) &
                           (config_df['run'] == int(exp_info['run'])), 'file'].values[0]
-    video = psychopy.visual.MovieStim(window, filename=file_)
+    video = psychopy.visual.MovieStim3(window, filename=file_)
 
     # Waiting for scanner
     waiting = psychopy.visual.TextStim(
