@@ -5,7 +5,7 @@ Make sure to give credit to the authors.
 import os
 import sys
 import time
-
+from datetime import datetime
 import pandas as pd
 
 import psychopy
@@ -15,10 +15,47 @@ import psychopy.gui  # pylint: disable=E0401
 import psychopy.visual  # pylint: disable=E0401
 import psychopy.sound  # pylint: disable=E0401
 from psychopy import visual, core, data, logging
+from psychopy.constants import STARTED, STOPPED  # pylint: disable=E0401
 
 END_DUR = 6
 
+def close_on_esc(win):
+    """
+    Closes window if escape is pressed
+    """
+    if 'escape' in psychopy.event.getKeys():
+        win.close()
+        psychopy.core.quit()
 
+def draw(win, stim, duration):
+    """
+    Draw stimulus for a given duration.
+
+    Parameters
+    ----------
+    win : (psychopy.visual.Window)
+    stim : object with `.draw()` method
+    duration : (numeric) duration in seconds to display the stimulus
+    """
+    # Use a busy loop instead of sleeping so we can exit early if need be.
+    start_time = time.time()
+    response = psychopy.event.BuilderKeyResponse()
+    response.tStart = start_time
+    response.frameNStart = 0
+    response.status = STARTED
+    window.callOnFlip(response.clock.reset)
+    psychopy.event.clearEvents(eventType='keyboard')
+    while time.time() - start_time < duration:
+        stim.draw()
+        keys = psychopy.event.getKeys(keyList=['1', '2'],
+                                      timeStamped=trials_clock)
+        if keys:
+            response.keys.extend(keys)
+            response.rt.append(response.clock.getTime())
+        close_on_esc(win)
+        win.flip()
+    response.status = STOPPED
+    return response.keys, response.rt
 if __name__ == '__main__':
     # Collect user input
     # ------------------
@@ -47,7 +84,7 @@ if __name__ == '__main__':
     config_df = pd.read_csv(config_file, sep='\t')
     file_ = config_df.loc[(config_df['session'] == int(exp_info['session'])) &
                           (config_df['run'] == int(exp_info['run'])), 'file'].values[0]
-    video = psychopy.visual.MovieStim3(window, filename=file_)
+    video = psychopy.visual.MovieStim(window, filename=file_)
 
     # Waiting for scanner
     waiting = psychopy.visual.TextStim(
@@ -64,11 +101,17 @@ Please keep your eyes open.""")
     waiting.draw()
     window.flip()
     psychopy.event.waitKeys(keyList=['space', '5'])
-
-    startTime = datetime.now()
+    trials_clock = psychopy.core.Clock()
     routine_clock = psychopy.core.Clock()
-
-    video.draw()
+    startTime = routine_clock.getTime()
+    t = 0
+    video.autoDraw = True
+    while t <= video.duration * 1000:
+        #video.draw(window)
+        window.flip()
+        close_on_esc(window)
+        t += 1
+    video.autoDraw = False
     fixStartTime = routine_clock.getTime()
     duration = fixStartTime - startTime
 
@@ -78,7 +121,9 @@ Please keep your eyes open.""")
     # Compile file
     COLUMNS = ['onset', 'duration', 'stim_file']
     data = [[startTime, duration, file_],
-            [fixStartTime, fixDuration, 'n/a']]
+            [fixStartTime, duration, 'n/a']]
+    if not os.path.exists('data'):
+        os.makedirs('data')
     out_frame = pd.DataFrame(columns=COLUMNS, data=data)
     out_frame.to_csv(filename + '.tsv', sep='\t', na_rep='n/a', index=False)
 
