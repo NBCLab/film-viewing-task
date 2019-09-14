@@ -7,6 +7,7 @@ import sys
 import time
 from datetime import datetime
 import pandas as pd
+import numpy as np
 
 import psychopy
 import psychopy.core  # pylint: disable=E0401
@@ -17,7 +18,9 @@ import psychopy.sound  # pylint: disable=E0401
 from psychopy import visual, core, data, logging
 from psychopy.constants import STARTED, STOPPED  # pylint: disable=E0401
 
-END_DUR = 6
+START_FIX_DUR = 2
+END_FIX_DUR = 6
+
 
 def close_on_esc(win):
     """
@@ -26,6 +29,7 @@ def close_on_esc(win):
     if 'escape' in psychopy.event.getKeys():
         win.close()
         psychopy.core.quit()
+
 
 def draw(win, stim, duration):
     """
@@ -56,6 +60,8 @@ def draw(win, stim, duration):
         win.flip()
     response.status = STOPPED
     return response.keys, response.rt
+
+
 if __name__ == '__main__':
     # Collect user input
     # ------------------
@@ -92,8 +98,13 @@ if __name__ == '__main__':
         """You are about to watch a video.
 Please keep your eyes open.""")
 
+    end_screen = psychopy.visual.TextStim(window, "The task is now complete!")
+
     # Rest between tasks
     crosshair = psychopy.visual.TextStim(window, '+', height=2)
+
+    if not os.path.exists('data'):
+        os.makedirs('data')
 
     # Scanner runtime
     # ---------------
@@ -103,31 +114,47 @@ Please keep your eyes open.""")
     psychopy.event.waitKeys(keyList=['space', '5'])
     trials_clock = psychopy.core.Clock()
     routine_clock = psychopy.core.Clock()
-    startTime = routine_clock.getTime()
-    t = 0
-    video.autoDraw = True
-    while t <= video.duration * 1000:
-        #video.draw(window)
+
+    # Start with fixation
+    startTimeFix1 = routine_clock.getTime()
+    draw(win=window, stim=crosshair, duration=START_FIX_DUR)
+
+    # Now the video
+    startTimeVid = routine_clock.getTime()
+    durationFix1 = startTimeVid - startTimeFix1
+
+    video.autoDraw = False
+
+    fps = 1 / window.monitorFramePeriod
+    n_frames = int(np.ceil(video.duration * fps))
+    # n_frames = int(np.ceil(10 * fps))  # test with 10 seconds
+    for t in range(n_frames):
+        video.draw(window)
         window.flip()
         close_on_esc(window)
-        t += 1
-    video.autoDraw = False
-    fixStartTime = routine_clock.getTime()
-    duration = fixStartTime - startTime
 
-    # End with six seconds of rest
-    draw(win=window, stim=crosshair, duration=END_DUR)
+    startTimeFix2 = routine_clock.getTime()
+    durationVid = startTimeFix2 - startTimeVid
+
+    # End with fixation
+    draw(win=window, stim=crosshair, duration=END_FIX_DUR)
+
+    startTimeEnd = routine_clock.getTime()
+    durationFix2 = startTimeEnd - startTimeFix2
+
+    # Final note that task is over. Runs after scan ends.
+    draw(win=window, stim=end_screen, duration=2)
+    window.flip()
+
+    # Calculate time and duration just in case we want them in the future
+    endTime = routine_clock.getTime()
+    durationEnd = endTime - startTimeEnd
 
     # Compile file
-    COLUMNS = ['onset', 'duration', 'stim_file']
-    data = [[startTime, duration, file_],
-            [fixStartTime, duration, 'n/a']]
-    if not os.path.exists('data'):
-        os.makedirs('data')
+    COLUMNS = ['onset', 'duration', 'trial_type', 'stim_file']
+    data = [[startTimeFix1, durationFix1, 'fixation', 'n/a'],
+            [startTimeVid, durationVid, 'film', file_],
+            [startTimeFix2, durationFix2, 'fixation', 'n/a']]
+
     out_frame = pd.DataFrame(columns=COLUMNS, data=data)
     out_frame.to_csv(filename + '.tsv', sep='\t', na_rep='n/a', index=False)
-
-    end_screen = psychopy.visual.TextStim(window, "The task is now complete!")
-    end_screen.draw()
-    window.flip()
-    psychopy.event.waitKeys(keyList=['space', '5', 'escape'])
