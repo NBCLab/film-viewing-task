@@ -10,8 +10,8 @@ import numpy as np
 import pandas as pd
 from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
 
-SPLIT_TIMES = {'S01E01': [5., 505.5, 968., 1380.2, 1808.8, 2275.4, 2774.],
-               'S01E02': [5.5, 524., 897.7, 1440.55, 1971.2, 2411.875, 2738.4, 3179.5],
+SPLIT_TIMES = {'S01E01': [5., 505.5, 968.4, 1380.26, 1808.85, 2275.44, 2774.1],
+               'S01E02': [5.5, 524., 897.7, 1440.55, 1971.2, 2411.875, 2738., 3179.5],
                'S01E03': [5.5, 462.5, 927.21, 1402.52, 1940.8, 2342.1, 2966.],
                'S01E04': [5.5, 465.5, 958.2, 1397., 1896.6, 2240.9, 2886.],
                }
@@ -72,7 +72,7 @@ def split_video(in_file):
     srt_files = sorted(glob(srt_search_term))
 
     for i_run, start_time in enumerate(split_times[:-1]):
-        run_file = op.join(clips_dir, 'c{0}R{1:02d}.mp4'.format(fname, i_run+1))
+        run_file = op.join(clips_dir, 'uc{0}R{1:02d}.mp4'.format(fname, i_run+1))
         run_file_drc = op.join(clips_dir, '{0}R{1:02d}.mp4'.format(fname, i_run+1))
         run_srt_file = op.join(clips_dir, '{0}R{1:02d}.srt'.format(fname, i_run+1))
 
@@ -85,7 +85,12 @@ def split_video(in_file):
         # split video
         if not op.isfile(run_file):
             print('\n\n\nSplitting scene {}\n'.format(i_run+1))
-            ffmpeg_extract_subclip(mp4_file, start_time, end_time, targetname=run_file)
+            # Quick-and-dirty approach.
+            # Due to encoding, this leads to frozen/missing frames
+            # ffmpeg_extract_subclip(mp4_file, start_time, end_time, targetname=run_file)
+
+            # Slow-and-accurate (hopefully) approach.
+            # Actually transcodes MP4 to MP4, which should create new I-Frames.
             cmd = ('ffmpeg -ss {start_time} -t {duration} -i {full_mp4} '
                    '{split_avi}').format(
                         start_time=start_time,
@@ -93,17 +98,17 @@ def split_video(in_file):
                         full_mp4=mp4_file,
                         split_avi=run_file)
             print(cmd+'\n\n\n')
-            # run(cmd)
+            run(cmd)
 
-        # crop and add black bars. Not doing this!
-        # dynamic range compression
-        if not op.isfile(run_file_drc):
-            print('\n\n\nPerforming dynamic range compression\n\n\n')
+            # crop and add black bars. Not doing this!
+            # dynamic range compression
+            print('\n\n\nPerforming dynamic range compression\n')
             cmd = ('ffmpeg -i {split_avi} -filter_complex '
                    '"[0:a]compand=.3|.3:1|1:-90/-60|-60/-40|-40/-30|-20/-20:6:0'
                    ':-90:0.2[audio]" -map 0:v -map "[audio]" -codec:v copy '
                    '{csplit_avi}').format(split_avi=run_file,
                                           csplit_avi=run_file_drc)
+            print(cmd+'\n\n\n')
             run(cmd)
 
         # reencode video to Indeo 5.1 and audio to PCM uncompressed?
@@ -117,7 +122,7 @@ if __name__ == '__main__':
     in_dir = '/Users/tsalo/Desktop/diva-stimuli/'
     files = sorted(glob(op.join(in_dir, 'S01E0*.mov')))
     files = [s for s in files if op.isfile(s)]
-    for in_file in files:
+    for in_file in files[:1]:
         fname = op.basename(in_file)
         if not op.isfile(in_file):
             print('File not found for {0}. Skipping.'.format(fname))
