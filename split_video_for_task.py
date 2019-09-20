@@ -1,4 +1,9 @@
 # coding: utf-8
+"""
+Scene detection:
+scenedetect --input S01E04.mp4 --stats S01E04_stats/S01E04_stats.csv detect-content --threshold 27 list-scenes
+"""
+
 import os
 from os import mkdir
 import os.path as op
@@ -11,8 +16,8 @@ import pandas as pd
 from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
 
 SPLIT_TIMES = {'S01E01': [5., 505.5, 968.4, 1380.26, 1808.85, 2275.44, 2774.1],
-               'S01E02': [5.5, 524., 897.7, 1440.55, 1971.2, 2411.875, 2738., 3179.5],
-               'S01E03': [5.5, 462.5, 927.21, 1402.52, 1940.8, 2342.1, 2966.],
+               'S01E02': [5.5, 524.05, 897.75, 1440.55, 1971.305, 2412.293, 2738.42525, 3179.2],
+               'S01E03': [5.5, 462.49, 927.48, 1402.5075, 1940.83, 2342.17, 2966.],
                'S01E04': [5.5, 465.5, 958.2, 1397., 1896.6, 2240.9, 2886.],
                }
 
@@ -122,7 +127,7 @@ if __name__ == '__main__':
     in_dir = '/Users/tsalo/Desktop/diva-stimuli/'
     files = sorted(glob(op.join(in_dir, 'S01E0*.mov')))
     files = [s for s in files if op.isfile(s)]
-    for in_file in files[:1]:
+    for in_file in files[:3]:
         fname = op.basename(in_file)
         if not op.isfile(in_file):
             print('File not found for {0}. Skipping.'.format(fname))
