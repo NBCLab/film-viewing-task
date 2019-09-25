@@ -18,8 +18,8 @@ import psychopy.sound  # pylint: disable=E0401
 from psychopy import visual, core, data, logging
 from psychopy.constants import STARTED, STOPPED  # pylint: disable=E0401
 
-START_FIX_DUR = 2
-END_FIX_DUR = 6
+START_FIX_DUR = 1.55 * 2
+END_FIX_DUR = 1.55 * 3
 
 
 def close_on_esc(win):
