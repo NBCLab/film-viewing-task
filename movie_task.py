@@ -18,8 +18,9 @@ import psychopy.sound  # pylint: disable=E0401
 from psychopy import visual, core, data, logging
 from psychopy.constants import STARTED, STOPPED  # pylint: disable=E0401
 
-START_FIX_DUR = 1.55 * 2
-END_FIX_DUR = 1.55 * 3
+T_R = 1.55
+START_FIX_DUR = T_R * 2
+END_FIX_DUR = T_R * 3
 
 
 def close_on_esc(win):
@@ -76,6 +77,7 @@ if __name__ == '__main__':
         order=['subject', 'session'])
     window = psychopy.visual.Window(
         size=(800, 600), fullscr=True, monitor='testMonitor', units='deg',
+        # size=(500, 400), fullscr=False, monitor='testMonitor', units='deg',
         allowStencil=False, allowGUI=False)
     if not dlg.OK:
         psychopy.core.quit()
@@ -91,6 +93,11 @@ if __name__ == '__main__':
     file_ = config_df.loc[(config_df['session'] == int(exp_info['session'])) &
                           (config_df['run'] == int(exp_info['run'])), 'file'].values[0]
     video = psychopy.visual.MovieStim(window, filename=file_)
+
+    # Determine duration of ending fixation.
+    upper = np.ceil(video.duration / T_R) * T_R
+    diff = upper - video.duration
+    run_end_fix_dur = END_FIX_DUR + diff
 
     # Waiting for scanner
     waiting = psychopy.visual.TextStim(
@@ -137,7 +144,7 @@ Please keep your eyes open.""")
     durationVid = startTimeFix2 - startTimeVid
 
     # End with fixation
-    draw(win=window, stim=crosshair, duration=END_FIX_DUR)
+    draw(win=window, stim=crosshair, duration=run_end_fix_dur)
 
     startTimeEnd = routine_clock.getTime()
     durationFix2 = startTimeEnd - startTimeFix2

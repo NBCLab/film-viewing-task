@@ -1,7 +1,7 @@
 # coding: utf-8
 """
 Scene detection:
-scenedetect --input ../S01E05.m4v --stats S01E05_stats.csv detect-content --threshold 27 list-scenes
+scenedetect --input ../S01E05.mp4 --stats S01E05_stats.csv detect-content --threshold 27 list-scenes
 """
 
 import os
@@ -41,7 +41,6 @@ SPLIT_TIMES = {'S01E01': [(5., 505.5),
                           (1896.8, 2240.9),
                           (2240.9, 2886.)],
                'S01E05': [(5.5, 495.),
-                          (495., 545.),
                           (545., 986.277),
                           (986.277, 1509.425),
                           (1509.425, 1950.532),
@@ -70,7 +69,7 @@ def run(command, env={}):
 
 
 def split_video(in_file):
-    mp4_file = in_file.replace('.mov', '.mp4')
+    mp4_file = in_file.replace('.mp4', '.mp4')
     fname = op.splitext(op.basename(in_file))[0]
     out_dir = op.dirname(in_file)
     clips_dir = op.join(out_dir, fname)
@@ -93,6 +92,8 @@ def split_video(in_file):
 
     for i_run, split_times in enumerate(episode_split_times[:-1]):
         run_file = op.join(clips_dir, 'uc{0}R{1:02d}.mp4'.format(fname, i_run+1))
+        # ffmpeg keeping trailing empty time
+        run_file_bad = op.join(clips_dir, 'uc{0}R{1:02d}_bad.mp4'.format(fname, i_run+1))
         run_file_drc = op.join(clips_dir, '{0}R{1:02d}.mp4'.format(fname, i_run+1))
         if op.isfile(run_file):
             print('Skipping {0}R{1:02d}. Already exists.'.format(fname, i_run+1))
@@ -119,7 +120,7 @@ def split_video(in_file):
                 temp_str = '\n'.join(["file '{}'".format(tf) for tf in temp_files])
                 fo.write(temp_str)
 
-            cmd = 'ffmpeg -f concat -safe 0 -i merge_list.txt -c copy {}'.format(run_file)
+            cmd = 'ffmpeg -f concat -safe 0 -i merge_list.txt -c copy {}'.format(run_file_bad)
             print(cmd+'\n\n\n')
             run(cmd)
 
@@ -136,9 +137,11 @@ def split_video(in_file):
                         start_time=split_times[0],
                         duration=dur,
                         video_file=mp4_file,
-                        clip_file=run_file)
+                        clip_file=run_file_bad)
             print(cmd+'\n\n\n')
             run(cmd)
+        ffmpeg_extract_subclip(run_file_bad, t1=0., t2=dur, targetname=run_file)
+        os.remove(run_file_bad)
 
         print('\n\n\nPerforming dynamic range compression\n')
         cmd = ('ffmpeg -i {clip_file} -filter_complex '
@@ -152,9 +155,9 @@ def split_video(in_file):
 
 if __name__ == '__main__':
     in_dir = '/Users/tsalo/Desktop/diva-stimuli/'
-    files = sorted(glob(op.join(in_dir, 'S01E0*.mov')))
+    files = sorted(glob(op.join(in_dir, 'S01E0*.mp4')))
     files = [s for s in files if op.isfile(s)]
-    for in_file in files[:4]:
+    for in_file in files:
         fname = op.basename(in_file)
         if not op.isfile(in_file):
             print('File not found for {0}. Skipping.'.format(fname))
