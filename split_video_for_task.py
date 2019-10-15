@@ -41,11 +41,12 @@ SPLIT_TIMES = {'S01E01': [(5., 505.5),
                           (1896.8, 2240.9),
                           (2240.9, 2886.)],
                'S01E05': [(5.5, 495.),
-                          (545., 986.277),
+                          (545.5, 986.277),
                           (986.277, 1509.425),
                           (1509.425, 1950.532),
                           (1950.532, 2462.585),
-                          (2462.585, 3038.5)]}
+                          (2462.585, 3038.5)],
+               }
 
 
 def run(command, env={}):
@@ -90,7 +91,7 @@ def split_video(in_file):
                '{full_mp4}').format(full_mov=in_file, full_mp4=mp4_file)
         run(cmd)
 
-    for i_run, split_times in enumerate(episode_split_times[:-1]):
+    for i_run, split_times in enumerate(episode_split_times):
         run_file = op.join(clips_dir, 'uc{0}R{1:02d}.mp4'.format(fname, i_run+1))
         # ffmpeg keeping trailing empty time
         run_file_bad = op.join(clips_dir, 'uc{0}R{1:02d}_bad.mp4'.format(fname, i_run+1))
@@ -106,7 +107,7 @@ def split_video(in_file):
             for j_clip, clip_split_times in enumerate(split_times):
                 print('Splitting video')
                 dur = clip_split_times[1] - clip_split_times[0]
-                cmd = ('ffmpeg -ss {start_time} -t {duration} -i {video_file} '
+                cmd = ('ffmpeg -ss {start_time} -i {video_file} -t {duration} '
                        '{clip_file}').format(
                             start_time=clip_split_times[0],
                             duration=dur,
@@ -132,16 +133,16 @@ def split_video(in_file):
             # split
             print('Splitting video')
             dur = split_times[1] - split_times[0]
-            cmd = ('ffmpeg -ss {start_time} -t {duration} -i {video_file} '
+            cmd = ('ffmpeg -ss {start_time} -i {video_file} -t {duration} '
                    '{clip_file}').format(
                         start_time=split_times[0],
                         duration=dur,
                         video_file=mp4_file,
-                        clip_file=run_file_bad)
+                        clip_file=run_file)
             print(cmd+'\n\n\n')
             run(cmd)
-        ffmpeg_extract_subclip(run_file_bad, t1=0., t2=dur, targetname=run_file)
-        os.remove(run_file_bad)
+        #ffmpeg_extract_subclip(run_file_bad, t1=0., t2=dur, targetname=run_file)
+        #os.remove(run_file_bad)
 
         print('\n\n\nPerforming dynamic range compression\n')
         cmd = ('ffmpeg -i {clip_file} -filter_complex '
