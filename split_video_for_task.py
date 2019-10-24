@@ -46,6 +46,11 @@ SPLIT_TIMES = {'S01E01': [(5., 505.5),
                           (1509.425, 1950.532),
                           (1950.532, 2462.585),
                           (2462.585, 3038.5)],
+               'S01E06': [((5.5, 148.), (198., 527.8)),
+                          (527.801, 965.465),
+                          (965.466, 1391.08),
+                          (1391.081, 2003.225),
+                          (2003.226, 2662.)],
                }
 
 
@@ -121,7 +126,7 @@ def split_video(in_file):
                 temp_str = '\n'.join(["file '{}'".format(tf) for tf in temp_files])
                 fo.write(temp_str)
 
-            cmd = 'ffmpeg -f concat -safe 0 -i merge_list.txt -c copy {}'.format(run_file_bad)
+            cmd = 'ffmpeg -f concat -safe 0 -i merge_list.txt -c copy {}'.format(run_file)
             print(cmd+'\n\n\n')
             run(cmd)
 

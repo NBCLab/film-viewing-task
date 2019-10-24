@@ -18,7 +18,7 @@ import psychopy.sound  # pylint: disable=E0401
 from psychopy import visual, core, data, logging
 from psychopy.constants import STARTED, STOPPED  # pylint: disable=E0401
 
-T_R = 1.55
+T_R = 1.5
 START_FIX_DUR = T_R * 2
 END_FIX_DUR = T_R * 3
 

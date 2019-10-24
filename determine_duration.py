@@ -3,7 +3,7 @@ import os.path as op
 from moviepy.editor import VideoFileClip
 import numpy as np
 
-T_R = 1.55
+T_R = 1.5
 START_FIX_DUR = T_R * 2
 END_FIX_DUR = T_R * 3
 
