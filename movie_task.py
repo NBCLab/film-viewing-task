@@ -3,6 +3,7 @@ Heavily adapted from https://github.com/courtois-neuromod/task_stimuli/blob/714c
 Make sure to give credit to the authors.
 """
 import os
+import os.path as op
 import sys
 import time
 from datetime import datetime
@@ -11,9 +12,9 @@ import numpy as np
 
 import psychopy
 import psychopy.core  # pylint: disable=E0401
+import psychopy.visual  # pylint: disable=E0401
 import psychopy.event  # pylint: disable=E0401
 import psychopy.gui  # pylint: disable=E0401
-import psychopy.visual  # pylint: disable=E0401
 import psychopy.sound  # pylint: disable=E0401
 from psychopy import visual, core, data, logging
 from psychopy.constants import STARTED, STOPPED  # pylint: disable=E0401
@@ -79,20 +80,24 @@ if __name__ == '__main__':
         size=(800, 600), fullscr=True, monitor='testMonitor', units='deg',
         # size=(500, 400), fullscr=False, monitor='testMonitor', units='deg',
         allowStencil=False, allowGUI=False)
+    fps = 1 / window.monitorFramePeriod
     if not dlg.OK:
         psychopy.core.quit()
-
-    filename = ('data/sub-{0}_ses-{1}_task-StrangerThings'
-                '_run-{2}_events').format(
-                    exp_info['subject'].zfill(2),
-                    exp_info['session'].zfill(2),
-                    exp_info['run'].zfill(2))
 
     config_file = 'stranger_things_config.tsv'
     config_df = pd.read_csv(config_file, sep='\t')
     file_ = config_df.loc[(config_df['session'] == int(exp_info['session'])) &
                           (config_df['run'] == int(exp_info['run'])), 'file'].values[0]
-    video = psychopy.visual.MovieStim(window, filename=file_)
+    episode = op.splitext(op.basename(file_))[0][:6]  # Episode number
+
+    filename = ('data/sub-{0}_ses-{1}_task-StrangerThings{2}'
+                '_run-{3}_events').format(
+                    exp_info['subject'].zfill(2),
+                    exp_info['session'].zfill(2),
+                    episode,
+                    exp_info['run'].zfill(2))
+
+    video = psychopy.visual.MovieStim2(window, filename=file_, name=episode)
 
     # Determine duration of ending fixation.
     upper = np.ceil(video.duration / T_R) * T_R
@@ -103,12 +108,13 @@ if __name__ == '__main__':
     waiting = psychopy.visual.TextStim(
         window,
         """You are about to watch a video.
-Please keep your eyes open.""")
+Please keep your eyes open.""",
+        name='instructions')
 
-    end_screen = psychopy.visual.TextStim(window, "The task is now complete!")
+    end_screen = psychopy.visual.TextStim(window, "The task is now complete!", name='end_screen')
 
     # Rest between tasks
-    crosshair = psychopy.visual.TextStim(window, '+', height=2)
+    crosshair = psychopy.visual.TextStim(window, '+', height=2, name='crosshair')
 
     if not os.path.exists('data'):
         os.makedirs('data')
@@ -118,7 +124,7 @@ Please keep your eyes open.""")
     # Wait for trigger from scanner.
     waiting.draw()
     window.flip()
-    psychopy.event.waitKeys(keyList=['space', '5'])
+    psychopy.event.waitKeys(keyList=['5'])
     trials_clock = psychopy.core.Clock()
     routine_clock = psychopy.core.Clock()
 
@@ -130,6 +136,7 @@ Please keep your eyes open.""")
     startTimeVid = routine_clock.getTime()
     durationFix1 = startTimeVid - startTimeFix1
 
+    # not sure what impact this has, if any
     video.autoDraw = False
 
     fps = 1 / window.monitorFramePeriod
@@ -145,6 +152,7 @@ Please keep your eyes open.""")
 
     # End with fixation
     draw(win=window, stim=crosshair, duration=run_end_fix_dur)
+    window.flip()
 
     startTimeEnd = routine_clock.getTime()
     durationFix2 = startTimeEnd - startTimeFix2
@@ -165,3 +173,6 @@ Please keep your eyes open.""")
 
     out_frame = pd.DataFrame(columns=COLUMNS, data=data)
     out_frame.to_csv(filename + '.tsv', sep='\t', na_rep='n/a', index=False)
+
+    del(waiting, end_screen, crosshair)
+    window.close()
