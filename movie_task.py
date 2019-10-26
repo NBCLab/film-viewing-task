@@ -79,7 +79,7 @@ if __name__ == '__main__':
     window = psychopy.visual.Window(
         size=(800, 600), fullscr=True, monitor='testMonitor', units='deg',
         # size=(500, 400), fullscr=False, monitor='testMonitor', units='deg',
-        allowStencil=False, allowGUI=False)
+        allowStencil=False, allowGUI=False, color='black')
     fps = 1 / window.monitorFramePeriod
     if not dlg.OK:
         psychopy.core.quit()
@@ -97,7 +97,7 @@ if __name__ == '__main__':
                     episode,
                     exp_info['run'].zfill(2))
 
-    video = psychopy.visual.MovieStim2(window, filename=file_, name=episode)
+    video = psychopy.visual.MovieStim(window, filename=file_, name=episode)
 
     # Determine duration of ending fixation.
     upper = np.ceil(video.duration / T_R) * T_R
@@ -107,14 +107,21 @@ if __name__ == '__main__':
     # Waiting for scanner
     waiting = psychopy.visual.TextStim(
         window,
-        """You are about to watch a video.
-Please keep your eyes open.""",
-        name='instructions')
+        """\
+You are about to watch a video.
+  Please keep your eyes open.""",
+        name='instructions',
+        color='white')
 
-    end_screen = psychopy.visual.TextStim(window, "The task is now complete!", name='end_screen')
+    end_screen = psychopy.visual.TextStim(
+        window, "The task is now complete!",
+        name='end_screen',
+        color='white')
 
     # Rest between tasks
-    crosshair = psychopy.visual.TextStim(window, '+', height=2, name='crosshair')
+    crosshair = psychopy.visual.TextStim(
+        window, '+', height=2, name='crosshair',
+        color='white')
 
     if not os.path.exists('data'):
         os.makedirs('data')
@@ -139,13 +146,14 @@ Please keep your eyes open.""",
     # not sure what impact this has, if any
     video.autoDraw = False
 
-    fps = 1 / window.monitorFramePeriod
     n_frames = int(np.ceil(video.duration * fps))
     # n_frames = int(np.ceil(10 * fps))  # test with 10 seconds
     for t in range(n_frames):
         video.draw(window)
         window.flip()
         close_on_esc(window)
+
+    video.pause()
 
     startTimeFix2 = routine_clock.getTime()
     durationVid = startTimeFix2 - startTimeVid
