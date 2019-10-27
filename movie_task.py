@@ -97,7 +97,10 @@ if __name__ == '__main__':
                     episode,
                     exp_info['run'].zfill(2))
 
-    video = psychopy.visual.MovieStim(window, filename=file_, name=episode)
+    video = psychopy.visual.MovieStim(
+        window,
+        filename=file_,
+        name=episode)
 
     # Determine duration of ending fixation.
     upper = np.ceil(video.duration / T_R) * T_R
@@ -114,13 +117,17 @@ You are about to watch a video.
         color='white')
 
     end_screen = psychopy.visual.TextStim(
-        window, "The task is now complete!",
+        window,
+        "The task is now complete.",
         name='end_screen',
         color='white')
 
     # Rest between tasks
     crosshair = psychopy.visual.TextStim(
-        window, '+', height=2, name='crosshair',
+        window,
+        '+',
+        height=2,
+        name='crosshair',
         color='white')
 
     if not os.path.exists('data'):
