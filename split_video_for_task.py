@@ -74,10 +74,13 @@ def run(command, env={}):
                                             process.stdout.read()))
 
 
-def split_video(episode_file):
+def split_video(episode_file, output_dir=None):
     mp4_file = episode_file.replace('.mp4', '.mp4')
     fname = op.splitext(op.basename(episode_file))[0]
-    out_dir = op.dirname(episode_file)
+    if output_dir is None:
+        out_dir = op.dirname(episode_file)
+    else:
+        out_dir = output_dir
     clips_dir = op.join(out_dir, fname)
     if not op.isdir(out_dir):
         mkdir(out_dir)
@@ -106,13 +109,14 @@ def split_video(episode_file):
         run_file_drc = op.join(clips_dir, 'drc_{0}R{1:02d}.mp4'.format(fname, i_run+1))
         # Run-wise split file after dynamic range compression and downsampling
         run_file_final = op.join(clips_dir, '{0}R{1:02d}.mp4'.format(fname, i_run+1))
-        if op.isfile(run_file_nondrc):
+        if op.isfile(run_file_final):
             print('Skipping {0}R{1:02d}. Already exists.'.format(fname, i_run+1))
             continue
 
-        if isinstance(split_times[0], tuple):
+        if isinstance(split_times[0], tuple) and not op.isfile(run_file_nondrc):
             # split and merge
-            temp_files = ['temp_{}.mp4'.format(j_clip) for j_clip in range(len(split_times))]
+            temp_files = [op.join(clips_dir, 'temp_{}.mp4'.format(j_clip))
+                          for j_clip in range(len(split_times))]
 
             for j_clip, clip_split_times in enumerate(split_times):
                 print('Splitting video')
@@ -127,22 +131,24 @@ def split_video(episode_file):
                 run(cmd)
 
             print('Merging clips')
-            with open('merge_list.txt', 'w') as fo:
+            merge_list_file = op.join(clips_dir, 'merge_list.txt')
+            with open(merge_list_file, 'w') as fo:
                 temp_str = '\n'.join(["file '{}'".format(tf) for tf in temp_files])
                 fo.write(temp_str)
 
             cmd = ('ffmpeg -f concat -safe 0 '
-                   '-i merge_list.txt -c copy '
+                   '-i {merge_list_file} -c copy '
                    '{run_file_nondrc}').format(
+                        merge_list_file=merge_list_file,
                         run_file_nondrc=run_file_nondrc)
             print(cmd+'\n\n\n')
             run(cmd)
 
             print('Removing temporary files')
-            os.remove('merge_list.txt')
+            os.remove(merge_list_file)
             for tf in temp_files:
                 os.remove(tf)
-        else:
+        elif not op.isfile(run_file_nondrc):
             # split
             print('Splitting video')
             dur = split_times[1] - split_times[0]
@@ -154,6 +160,8 @@ def split_video(episode_file):
                         run_file_nondrc=run_file_nondrc)
             print(cmd+'\n\n\n')
             run(cmd)
+        else:
+            print('Skipping run split. File already exists.')
 
         if not op.isfile(run_file_drc):
             print('\n\n\nPerforming dynamic range compression\n')
@@ -165,6 +173,8 @@ def split_video(episode_file):
                         run_file_drc=run_file_drc)
             print(cmd+'\n\n\n')
             run(cmd)
+        else:
+            print('\n\n\nSkipping dynamic range compression. File already exists\n')
 
         if not op.isfile(run_file_final):
             print('\n\n\nDownsampling audio and video\n')
@@ -177,15 +187,32 @@ def split_video(episode_file):
             run(cmd)
 
 
+def get_parser():
+    '''
+    Sets up argument parser
+    '''
+    parser = argparse.ArgumentParser(description='Video splitter and converter')
+    parser.add_argument('-i', '--inputfile', required=True, dest='episode_file',
+                        help='File to split')
+    parser.add_argument('-o', '--outputdir', required=True, dest='output_dir',
+                        help='Output directory')
+    return parser
+
+
+def main(argv=None):
+    '''
+    Function that executes when bidsify.py is called
+    Parameters inherited from argparser
+    ----------
+    dicom_dir: Directory cointaining dicom data to be processed
+    heuristics: Path to heuristics file
+    sub: Subject ID
+    ses: Session ID, if required
+    output_dir: Directory to output bidsified data
+    '''
+    args = get_parser().parse_args(argv)
+    split_video(args.episode_file, output_dir=args.output_dir)
+
+
 if __name__ == '__main__':
-    in_dir = '/Users/tsalo/Desktop/diva-stimuli/'
-    in_dir = '/scratch/tsalo006/diva-stimuli/'
-    files = sorted(glob(op.join(in_dir, 'S01E0*.mp4')))
-    files = [s for s in files if op.isfile(s)]
-    for episode_file in files:
-        episode_name = op.basename(episode_file)
-        if not op.isfile(episode_file):
-            print('File not found for {0}. Skipping.'.format(episode_name))
-        else:
-            print('Running {0}'.format(episode_name))
-            split_video(episode_file)
+    main()
