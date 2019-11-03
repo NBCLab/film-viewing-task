@@ -16,8 +16,43 @@ RUN rm /bin/sh && ln -s /bin/bash /bin/sh
 ENV LANG="en_US.UTF-8" \
     LC_ALL="C.UTF-8" \
     ND_ENTRYPOINT="/neurodocker/startup.sh"
-RUN apt-get update -qq && apt-get install -yq --no-install-recommends  \
-    	apt-utils bzip2 ca-certificates curl expat libgomp1 locales unzip nano \
+
+FROM base as build
+
+ARG        PKG_CONFIG_PATH=/opt/ffmpeg/lib/pkgconfig
+ARG        LD_LIBRARY_PATH=/opt/ffmpeg/lib
+ARG        PREFIX=/opt/ffmpeg
+ARG        MAKEFLAGS="-j2"
+
+RUN export ND_ENTRYPOINT="/neurodocker/startup.sh" \
+    && apt-get update -qq \
+    && apt-get install -yq --no-install-recommends \
+           apt-utils \
+           autoconf \
+           automake \
+           bzip2 \
+           ca-certificates \
+           cmake \
+           curl \
+           expat \
+           g++ \
+           gcc \
+           git \
+           gperf \
+           libexpat1-dev \
+           libgomp1 \
+           libssl-dev \
+           libtool \
+           locales \
+           make \
+           nano \
+           nasm \
+           perl \
+           pkg-config \
+           python \
+           unzip \
+           yasm \
+           zlib1g-dev \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* \
     && localedef --force --inputfile=en_US --charmap=UTF-8 C.UTF-8 \
@@ -30,12 +65,48 @@ RUN apt-get update -qq && apt-get install -yq --no-install-recommends  \
        fi \
     && chmod -R 777 /neurodocker && chmod a+s /neurodocker
 
-FROM base as build
+ENTRYPOINT ["/neurodocker/startup.sh"]
 
-ARG        PKG_CONFIG_PATH=/opt/ffmpeg/lib/pkgconfig
-ARG        LD_LIBRARY_PATH=/opt/ffmpeg/lib
-ARG        PREFIX=/opt/ffmpeg
-ARG        MAKEFLAGS="-j2"
+# Create new user: neuro
+RUN useradd --no-user-group --create-home --shell /bin/bash neuro
+USER neuro
+
+WORKDIR /home/neuro
+
+## Now the Python portion, from Neurodocker
+#------------------
+# Install Miniconda
+#------------------
+ENV CONDA_DIR=/opt/conda \
+    PATH=/opt/conda/bin:$PATH
+RUN echo "Downloading Miniconda installer ..." \
+    && miniconda_installer=/tmp/miniconda.sh \
+    && curl -sSL --retry 5 -o $miniconda_installer https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh \
+    && /bin/bash $miniconda_installer -b -p $CONDA_DIR \
+    && rm -f $miniconda_installer \
+    && conda config --system --prepend channels conda-forge \
+    && conda config --system --set auto_update_conda false \
+    && conda config --system --set show_channel_urls true \
+    && conda clean -tipsy && sync
+
+#-------------------------
+# Create conda environment
+#-------------------------
+RUN conda create -y -q --name film python=3 \
+    traits=4.6.0 \
+    && sync && conda clean -tipsy && sync \
+    && /bin/bash -c "source activate film \
+      && pip install numpy pandas moviepy" \
+    && sync \
+    && sed -i '$isource activate neuro' $ND_ENTRYPOINT
+
+COPY ./ /scripts/
+
+USER root
+
+RUN chown -R neuro:users /scripts/
+
+WORKDIR /home/neuro
 
 ENV         FFMPEG_VERSION=4.1.4 \
             AOM_VERSION=v1.0.0 \
@@ -70,32 +141,8 @@ ARG         THEORA_SHA256SUM="40952956c47811928d1e7922cda3bc1f427eb75680c3c37249
 ARG         VORBIS_SHA256SUM="6efbcecdd3e5dfbf090341b485da9d176eb250d893e3eb378c428a2db38301ce libvorbis-1.3.5.tar.gz"
 ARG         XVID_SHA256SUM="4e9fd62728885855bc5007fe1be58df42e5e274497591fec37249e1052ae316f xvidcore-1.3.4.tar.gz"
 
-
-
-RUN      buildDeps="autoconf \
-                    automake \
-                    cmake \
-                    curl \
-                    bzip2 \
-                    libexpat1-dev \
-                    g++ \
-                    gcc \
-                    git \
-                    gperf \
-                    libtool \
-                    make \
-                    nasm \
-                    perl \
-                    pkg-config \
-                    python \
-                    libssl-dev \
-                    yasm \
-                    zlib1g-dev" && \
-        apt-get -yqq update && \
-        apt-get install -yq --no-install-recommends ${buildDeps}
 ## opencore-amr https://sourceforge.net/projects/opencore-amr/
-RUN \
-        DIR=/tmp/opencore-amr && \
+RUN     DIR=/tmp/opencore-amr && \
         mkdir -p ${DIR} && \
         cd ${DIR} && \
         curl -sL https://versaweb.dl.sourceforge.net/project/opencore-amr/opencore-amr/opencore-amr-${OPENCOREAMR_VERSION}.tar.gz | \
@@ -105,8 +152,7 @@ RUN \
         make install && \
         rm -rf ${DIR}
 ## x264 http://www.videolan.org/developers/x264.html
-RUN \
-        DIR=/tmp/x264 && \
+RUN     DIR=/tmp/x264 && \
         mkdir -p ${DIR} && \
         cd ${DIR} && \
         curl -sL https://download.videolan.org/pub/videolan/x264/snapshots/x264-snapshot-${X264_VERSION}.tar.bz2 | \
@@ -116,8 +162,7 @@ RUN \
         make install && \
         rm -rf ${DIR}
 ### x265 http://x265.org/
-RUN \
-        DIR=/tmp/x265 && \
+RUN     DIR=/tmp/x265 && \
         mkdir -p ${DIR} && \
         cd ${DIR} && \
         curl -sL https://download.videolan.org/pub/videolan/x265/x265_${X265_VERSION}.tar.gz  | \
@@ -129,8 +174,7 @@ RUN \
         make -C 8bit install && \
         rm -rf ${DIR}
 ### libogg https://www.xiph.org/ogg/
-RUN \
-        DIR=/tmp/ogg && \
+RUN     DIR=/tmp/ogg && \
         mkdir -p ${DIR} && \
         cd ${DIR} && \
         curl -sLO http://downloads.xiph.org/releases/ogg/libogg-${OGG_VERSION}.tar.gz && \
@@ -141,8 +185,7 @@ RUN \
         make install && \
         rm -rf ${DIR}
 ### libopus https://www.opus-codec.org/
-RUN \
-        DIR=/tmp/opus && \
+RUN     DIR=/tmp/opus && \
         mkdir -p ${DIR} && \
         cd ${DIR} && \
         curl -sLO https://archive.mozilla.org/pub/opus/opus-${OPUS_VERSION}.tar.gz && \
@@ -154,8 +197,7 @@ RUN \
         make install && \
         rm -rf ${DIR}
 ### libvorbis https://xiph.org/vorbis/
-RUN \
-        DIR=/tmp/vorbis && \
+RUN     DIR=/tmp/vorbis && \
         mkdir -p ${DIR} && \
         cd ${DIR} && \
         curl -sLO http://downloads.xiph.org/releases/vorbis/libvorbis-${VORBIS_VERSION}.tar.gz && \
@@ -166,8 +208,7 @@ RUN \
         make install && \
         rm -rf ${DIR}
 ### libtheora http://www.theora.org/
-RUN \
-        DIR=/tmp/theora && \
+RUN     DIR=/tmp/theora && \
         mkdir -p ${DIR} && \
         cd ${DIR} && \
         curl -sLO http://downloads.xiph.org/releases/theora/libtheora-${THEORA_VERSION}.tar.gz && \
@@ -178,8 +219,7 @@ RUN \
         make install && \
         rm -rf ${DIR}
 ### libvpx https://www.webmproject.org/code/
-RUN \
-        DIR=/tmp/vpx && \
+RUN     DIR=/tmp/vpx && \
         mkdir -p ${DIR} && \
         cd ${DIR} && \
         curl -sL https://codeload.github.com/webmproject/libvpx/tar.gz/v${VPX_VERSION} | \
@@ -190,8 +230,7 @@ RUN \
         make install && \
         rm -rf ${DIR}
 ### libwebp https://developers.google.com/speed/webp/
-RUN \
-        DIR=/tmp/vebp && \
+RUN     DIR=/tmp/vebp && \
         mkdir -p ${DIR} && \
         cd ${DIR} && \
         curl -sL https://storage.googleapis.com/downloads.webmproject.org/releases/webp/libwebp-${WEBP_VERSION}.tar.gz | \
@@ -201,8 +240,7 @@ RUN \
         make install && \
         rm -rf ${DIR}
 ### libmp3lame http://lame.sourceforge.net/
-RUN \
-        DIR=/tmp/lame && \
+RUN     DIR=/tmp/lame && \
         mkdir -p ${DIR} && \
         cd ${DIR} && \
         curl -sL https://versaweb.dl.sourceforge.net/project/lame/lame/$(echo ${LAME_VERSION} | sed -e 's/[^0-9]*\([0-9]*\)[.]\([0-9]*\)[.]\([0-9]*\)\([0-9A-Za-z-]*\)/\1.\2/')/lame-${LAME_VERSION}.tar.gz | \
@@ -212,8 +250,7 @@ RUN \
         make install && \
         rm -rf ${DIR}
 ### xvid https://www.xvid.com/
-RUN \
-        DIR=/tmp/xvid && \
+RUN     DIR=/tmp/xvid && \
         mkdir -p ${DIR} && \
         cd ${DIR} && \
         curl -sLO http://downloads.xvid.org/downloads/xvidcore-${XVID_VERSION}.tar.gz && \
@@ -225,8 +262,7 @@ RUN \
         make install && \
         rm -rf ${DIR}
 ### fdk-aac https://github.com/mstorsjo/fdk-aac
-RUN \
-        DIR=/tmp/fdk-aac && \
+RUN     DIR=/tmp/fdk-aac && \
         mkdir -p ${DIR} && \
         cd ${DIR} && \
         curl -sL https://github.com/mstorsjo/fdk-aac/archive/v${FDKAAC_VERSION}.tar.gz | \
@@ -237,8 +273,7 @@ RUN \
         make install && \
         rm -rf ${DIR}
 ## openjpeg https://github.com/uclouvain/openjpeg
-RUN \
-        DIR=/tmp/openjpeg && \
+RUN     DIR=/tmp/openjpeg && \
         mkdir -p ${DIR} && \
         cd ${DIR} && \
         curl -sL https://github.com/uclouvain/openjpeg/archive/v${OPENJPEG_VERSION}.tar.gz | \
@@ -248,8 +283,7 @@ RUN \
         make install && \
         rm -rf ${DIR}
 ## freetype https://www.freetype.org/
-RUN  \
-        DIR=/tmp/freetype && \
+RUN     DIR=/tmp/freetype && \
         mkdir -p ${DIR} && \
         cd ${DIR} && \
         curl -sLO https://download.savannah.gnu.org/releases/freetype/freetype-${FREETYPE_VERSION}.tar.gz && \
@@ -260,8 +294,7 @@ RUN  \
         make install && \
         rm -rf ${DIR}
 ## libvstab https://github.com/georgmartius/vid.stab
-RUN  \
-        DIR=/tmp/vid.stab && \
+RUN     DIR=/tmp/vid.stab && \
         mkdir -p ${DIR} && \
         cd ${DIR} && \
         curl -sLO https://github.com/georgmartius/vid.stab/archive/v${LIBVIDSTAB_VERSION}.tar.gz &&\
@@ -273,8 +306,7 @@ RUN  \
         rm -rf ${DIR}
 ## fridibi https://www.fribidi.org/
 # + https://github.com/fribidi/fribidi/issues/8
-RUN  \
-        DIR=/tmp/fribidi && \
+RUN     DIR=/tmp/fribidi && \
         mkdir -p ${DIR} && \
         cd ${DIR} && \
         curl -sLO https://github.com/fribidi/fribidi/archive/${FRIBIDI_VERSION}.tar.gz && \
@@ -287,8 +319,7 @@ RUN  \
         make install && \
         rm -rf ${DIR}
 ## fontconfig https://www.freedesktop.org/wiki/Software/fontconfig/
-RUN  \
-        DIR=/tmp/fontconfig && \
+RUN     DIR=/tmp/fontconfig && \
         mkdir -p ${DIR} && \
         cd ${DIR} && \
         curl -sLO https://www.freedesktop.org/software/fontconfig/release/fontconfig-${FONTCONFIG_VERSION}.tar.bz2 &&\
@@ -298,8 +329,7 @@ RUN  \
         make install && \
         rm -rf ${DIR}
 ## libass https://github.com/libass/libass
-RUN  \
-        DIR=/tmp/libass && \
+RUN     DIR=/tmp/libass && \
         mkdir -p ${DIR} && \
         cd ${DIR} && \
         curl -sLO https://github.com/libass/libass/archive/${LIBASS_VERSION}.tar.gz &&\
@@ -311,8 +341,7 @@ RUN  \
         make install && \
         rm -rf ${DIR}
 ## kvazaar https://github.com/ultravideo/kvazaar
-RUN \
-        DIR=/tmp/kvazaar && \
+RUN     DIR=/tmp/kvazaar && \
         mkdir -p ${DIR} && \
         cd ${DIR} && \
         curl -sLO https://github.com/ultravideo/kvazaar/archive/v${KVAZAAR_VERSION}.tar.gz &&\
@@ -323,8 +352,7 @@ RUN \
         make install && \
         rm -rf ${DIR}
 
-RUN \
-	DIR=/tmp/aom && \
+RUN     DIR=/tmp/aom && \
         git clone --branch ${AOM_VERSION} --depth 1 https://aomedia.googlesource.com/aom ${DIR} ; \
         cd ${DIR} ; \
         rm -rf CMakeCache.txt CMakeFiles ; \
@@ -336,13 +364,11 @@ RUN \
         rm -rf ${DIR}
 
 ## ffmpeg https://ffmpeg.org/
-RUN  \
-        DIR=/tmp/ffmpeg && mkdir -p ${DIR} && cd ${DIR} && \
+RUN     DIR=/tmp/ffmpeg && mkdir -p ${DIR} && cd ${DIR} && \
         curl -sLO https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.bz2 && \
         tar -jx --strip-components=1 -f ffmpeg-${FFMPEG_VERSION}.tar.bz2
 
-RUN \
-        DIR=/tmp/ffmpeg && mkdir -p ${DIR} && cd ${DIR} && \
+RUN     DIR=/tmp/ffmpeg && mkdir -p ${DIR} && cd ${DIR} && \
         ./configure \
         --disable-debug \
         --disable-doc \
@@ -386,47 +412,10 @@ RUN \
         cp qt-faststart ${PREFIX}/bin
 
 ## cleanup
-RUN \
-        ldd ${PREFIX}/bin/ffmpeg | grep opt/ffmpeg | cut -d ' ' -f 3 | xargs -i cp {} /usr/local/lib/ && \
+RUN     ldd ${PREFIX}/bin/ffmpeg | grep opt/ffmpeg | cut -d ' ' -f 3 | xargs -i cp {} /usr/local/lib/ && \
         cp ${PREFIX}/bin/* /usr/local/bin/ && \
         cp -r ${PREFIX}/share/ffmpeg /usr/local/share/ && \
         LD_LIBRARY_PATH=/usr/local/lib ffmpeg -buildconf
-
-# Create new user: neuro
-RUN useradd --no-user-group --create-home --shell /bin/bash neuro
-USER neuro
-
-WORKDIR /home/neuro
-
-## Now the Python portion, from Neurodocker
-#------------------
-# Install Miniconda
-#------------------
-ENV CONDA_DIR=/opt/conda \
-    PATH=/opt/conda/bin:$PATH
-RUN echo "Downloading Miniconda installer ..." \
-    && miniconda_installer=/tmp/miniconda.sh \
-    && curl -sSL --retry 5 -o $miniconda_installer https://repo.continuum.io/miniconda/Miniconda3-latest-Linux-x86_64.sh \
-    && /bin/bash $miniconda_installer -b -p $CONDA_DIR \
-    && rm -f $miniconda_installer \
-    && conda config --system --prepend channels conda-forge \
-    && conda config --system --set auto_update_conda false \
-    && conda config --system --set show_channel_urls true \
-    && conda clean -tipsy && sync
-
-#-------------------------
-# Create conda environment
-#-------------------------
-RUN conda create -y -q --name film python=3 \
-    traits=4.6.0 \
-    && sync && conda clean -tipsy && sync \
-    && /bin/bash -c "source activate film \
-      && pip install numpy pandas moviepy" \
-    && sync \
-    && sed -i '$isource activate neuro' $ND_ENTRYPOINT
-
-FROM        base AS release
-MAINTAINER  Julien Rottenberg <julien@rottenberg.info>
 
 CMD         ["--help"]
 ENV         LD_LIBRARY_PATH=/usr/local/lib
@@ -445,8 +434,5 @@ ENV SINGULARITY_TMPDIR /scratch
 #----------------------
 # Set entrypoint script
 #----------------------
-COPY ./ /scripts/
-USER root
-RUN chmod 755 -R /scripts/
 USER neuro
 ENTRYPOINT ["/neurodocker/startup.sh", "python /scripts/split_video_for_task.py"]
