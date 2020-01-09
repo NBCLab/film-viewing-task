@@ -13,7 +13,7 @@ singularity build ffmpeg.sif docker://jrottenberg/ffmpeg:3.3-alpine
 
 Command to build the script:
 python generate_split_scripts.py -i /scratch/tsalo006/stranger-things/raw/S01E01.mp4 \
-    -o /scratch/tsalo006/stranger-things/processed/S01E01/
+    -o /scratch/tsalo006/stranger-things/processed/
 
 Command to run the scripts:
 singularity exec ffmpeg.sif tasks/stranger-things-task/scripts/run_S01E01.sh
