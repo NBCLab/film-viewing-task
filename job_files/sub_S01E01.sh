@@ -6,13 +6,13 @@
 #SBATCH -J S01E01
 
 #---Error file
-#SBATCH -e S01E01
+#SBATCH -e eS01E01
 
 #---Output file
-#SBATCH -o S01E01
+#SBATCH -o oS01E01
 
 #---Queue name
-#SBATCH -q acc_nbc
+#SBATCH --account iacc_nbc
 
 #---Partition
 #SBATCH -p centos7
