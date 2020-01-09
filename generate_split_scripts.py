@@ -15,8 +15,7 @@ python split_video_for_task.py -i /scratch/tsalo006/stranger-things/raw/S01E01.m
 Command to run the scripts:
 singularity exec ffmpeg.sif tasks/stranger-things-task/run_S01E01.sh
 """
-
-from os import mkdir
+import os
 import os.path as op
 import json
 import argparse
@@ -55,23 +54,25 @@ def build_script(episode_file, output_dir=None):
     with open('split_times.json', 'r') as fo:
         all_split_times = json.load(fo)
 
+    episode_split_times = all_split_times[fname]
+    script = ''
+
     mp4_file = episode_file.replace('.mp4', '.mp4')
     fname = op.splitext(op.basename(episode_file))[0]
+    script_file = 'scripts/run_{}.sh'.format(fname)
     if output_dir is None:
         out_dir = op.dirname(episode_file)
     else:
         out_dir = op.abspath(output_dir)
     clips_dir = op.join(out_dir, fname)
     if not op.isdir(out_dir):
-        mkdir(out_dir)
+        os.mkdir(out_dir)
 
-    episode_split_times = all_split_times[fname]
-    script = ''
+    if not op.isdir('scripts/'):
+        os.mkdir('scripts/')
 
-    if op.isdir(clips_dir):
-        print('{0} exists. Skipping.'.format(clips_dir))
-    else:
-        mkdir(clips_dir)
+    if not op.isdir(clips_dir):
+        os.mkdir(clips_dir)
 
     if not op.isfile(mp4_file):
         script += '#Converting to MP4\n'
@@ -145,8 +146,9 @@ def build_script(episode_file, output_dir=None):
                         run_file_drc=run_file_drc, run_file_final=run_file_final)
             script += cmd + '\n\n'
 
-    with open('scripts/run_{}.sh'.format(fname), 'w') as fo:
+    with open(script_file, 'w') as fo:
         fo.write(script)
+    os.chmod(script_file, 0o774)
 
 
 def get_parser():
