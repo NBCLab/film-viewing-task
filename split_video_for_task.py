@@ -83,18 +83,19 @@ def build_script(episode_file, output_dir=None):
 
     for i_run, split_times in enumerate(episode_split_times):
         # Run-wise split file
-        run_file_nondrc = op.join(clips_dir, 'nondrc_{0}R{1:02d}.mp4'.format(fname, i_run+1))
+        clip_name = '{0}R{1:02d}'.format(fname, i_run+1)
+        run_file_nondrc = op.join(clips_dir, 'nondrc_{}.mp4'.format(clip_name))
         # Run-wise split file after dynamic range compression
-        run_file_drc = op.join(clips_dir, 'drc_{0}R{1:02d}.mp4'.format(fname, i_run+1))
+        run_file_drc = op.join(clips_dir, 'drc_{}.mp4'.format(clip_name))
         # Run-wise split file after dynamic range compression and downsampling
-        run_file_final = op.join(clips_dir, '{0}R{1:02d}.mp4'.format(fname, i_run+1))
+        run_file_final = op.join(clips_dir, '{}.mp4'.format(clip_name))
         if op.isfile(run_file_final):
-            print('Skipping {0}R{1:02d}. Already exists.'.format(fname, i_run+1))
+            print('Skipping {}. Already exists.'.format(clip_name)
             continue
 
         if isinstance(split_times[0], tuple) and not op.isfile(run_file_nondrc):
             # split and merge
-            temp_files = [op.join(clips_dir, 'temp_{}.mp4'.format(j_clip))
+            temp_files = [op.join(clips_dir, 'temp_{}_{}.mp4'.format(clip_name, j_clip))
                           for j_clip in range(len(split_times))]
 
             for j_clip, clip_split_times in enumerate(split_times):
@@ -107,7 +108,7 @@ def build_script(episode_file, output_dir=None):
                 script += cmd + '\n\n'
 
             print('Merging clips')
-            merge_list_file = op.join(clips_dir, 'merge_list.txt')
+            merge_list_file = op.join(clips_dir, '{}_merge_list.txt'.format(clip_name))
             with open(merge_list_file, 'w') as fo:
                 temp_str = '\n'.join(["file '{}'".format(tf) for tf in temp_files])
                 fo.write(temp_str)
@@ -126,7 +127,7 @@ def build_script(episode_file, output_dir=None):
                         episode_file=mp4_file, run_file_nondrc=run_file_nondrc)
             script += cmd + '\n\n'
         else:
-            print('Skipping run split. File already exists.')
+            script += '#Skipping run split. File already exists.\n\n'
 
         if not op.isfile(run_file_drc):
             print('\n\n\nPerforming dynamic range compression\n')
@@ -137,10 +138,9 @@ def build_script(episode_file, output_dir=None):
                         run_file_nondrc=run_file_nondrc, run_file_drc=run_file_drc)
             script += cmd + '\n\n'
         else:
-            print('\n\n\nSkipping dynamic range compression. File already exists\n')
+            script += '#Skipping dynamic range compression. File already exists\n\n'
 
         if not op.isfile(run_file_final):
-            print('\n\n\nDownsampling audio and video\n')
             cmd = ('ffmpeg -i {run_file_drc} -codec:v libx264 -crf 0 -preset '
                    'veryslow -ar 44100 {run_file_final}').format(
                         run_file_drc=run_file_drc, run_file_final=run_file_final)
