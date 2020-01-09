@@ -19,7 +19,6 @@ from shutil import copyfile
 
 import numpy as np
 import pandas as pd
-from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
 
 
 def split_video(episode_file, output_dir=None):
