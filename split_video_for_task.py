@@ -134,7 +134,7 @@ def build_script(episode_file, output_dir=None):
             cmd = ('ffmpeg -i {run_file_drc} -codec:v libx264 -crf 0 -preset '
                    'veryslow -ar 44100 {run_file_final}').format(
                         run_file_drc=run_file_drc, run_file_final=run_file_final)
-            script += cmd
+            script += cmd + '\n\n'
 
     with open('run_{}.sh'.format(fname), 'w') as fo:
         fo.write(script)
