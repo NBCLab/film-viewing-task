@@ -16,12 +16,35 @@ import json
 from glob import glob
 import subprocess
 from shutil import copyfile
+import argparse
 
 import numpy as np
 import pandas as pd
 
 
-def split_video(episode_file, output_dir=None):
+def _get_parser():
+    """
+    Parses command line inputs for tedana
+
+    Returns
+    -------
+    parser.parse_args() : argparse dict
+    """
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        dest='episode_file',
+        help='Video file to split',
+        required=True
+    )
+    parser.add_argument(
+        dest='output_dir',
+        help='Output directory',
+        required=False
+    )
+    return parser
+
+
+def build_script(episode_file, output_dir=None):
     """
     Split a single episode file based on split times in a json file
     (split_times.json).
@@ -146,7 +169,7 @@ def main(argv=None):
     output_dir
     """
     args = get_parser().parse_args(argv)
-    split_video(args.episode_file, output_dir=args.output_dir)
+    build_script(args.episode_file, output_dir=args.output_dir)
 
 
 if __name__ == '__main__':
