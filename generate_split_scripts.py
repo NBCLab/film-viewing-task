@@ -95,7 +95,7 @@ def build_script(episode_file, output_dir=None):
         # Run-wise split file after dynamic range compression and downsampling
         run_file_final = op.join(clips_dir, '{}.mp4'.format(clip_name))
 
-        if isinstance(split_times[0], tuple) and not op.isfile(run_file_nondrc):
+        if isinstance(split_times[0], list) and not op.isfile(run_file_nondrc):
             # split and merge
             temp_files = [op.join(clips_dir, 'temp_{}_{}.mp4'.format(clip_name, j_clip))
                           for j_clip in range(len(split_times))]
