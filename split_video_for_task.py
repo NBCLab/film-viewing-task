@@ -7,6 +7,13 @@ scenedetect --input ../S01E05.mp4 --stats S01E05_stats.csv detect-content --thre
 
 Singularity image built with the following command because later versions failed on HPC:
 singularity build ffmpeg.sif docker://jrottenberg/ffmpeg:3.3-alpine
+
+Command to build the script:
+python split_video_for_task.py -i /scratch/tsalo006/stranger-things/raw/S01E01.mp4 \
+    -o /scratch/tsalo006/stranger-things/processed/S01E01/
+
+Command to run the scripts:
+singularity exec ffmpeg.sif tasks/stranger-things-task/run_S01E01.sh
 """
 
 from os import mkdir
@@ -138,7 +145,7 @@ def build_script(episode_file, output_dir=None):
                         run_file_drc=run_file_drc, run_file_final=run_file_final)
             script += cmd + '\n\n'
 
-    with open('run_{}.sh'.format(fname), 'w') as fo:
+    with open('scripts/run_{}.sh'.format(fname), 'w') as fo:
         fo.write(script)
 
 
