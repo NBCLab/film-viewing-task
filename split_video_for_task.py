@@ -32,14 +32,16 @@ def _get_parser():
     """
     parser = argparse.ArgumentParser()
     parser.add_argument(
+        '-i',
         dest='episode_file',
         help='Video file to split',
         required=True
     )
     parser.add_argument(
+        '-o',
         dest='output_dir',
         help='Output directory',
-        required=False
+        default=None
     )
     return parser
 
