@@ -5,15 +5,18 @@ Generate shell scripts that call ffmpeg to convert and split video files.
 Scene detection:
 scenedetect --input ../S01E05.mp4 --stats S01E05_stats.csv detect-content --threshold 27 list-scenes
 
+Follow that with tedious manual identification of the scene cut times and
+updating split_times.json
+
 Singularity image built with the following command because later versions failed on HPC:
 singularity build ffmpeg.sif docker://jrottenberg/ffmpeg:3.3-alpine
 
 Command to build the script:
-python split_video_for_task.py -i /scratch/tsalo006/stranger-things/raw/S01E01.mp4 \
+python generate_split_scripts.py -i /scratch/tsalo006/stranger-things/raw/S01E01.mp4 \
     -o /scratch/tsalo006/stranger-things/processed/S01E01/
 
 Command to run the scripts:
-singularity exec ffmpeg.sif tasks/stranger-things-task/run_S01E01.sh
+singularity exec ffmpeg.sif tasks/stranger-things-task/scripts/run_S01E01.sh
 """
 import os
 import os.path as op
