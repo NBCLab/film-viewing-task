@@ -51,6 +51,7 @@ def build_script(episode_file, output_dir=None):
     Split a single episode file based on split times in a json file
     (split_times.json).
     """
+    episode_file = op.abspath(episode_file)
     with open('split_times.json', 'r') as fo:
         split_times = json.load(fo)
 
@@ -59,7 +60,7 @@ def build_script(episode_file, output_dir=None):
     if output_dir is None:
         out_dir = op.dirname(episode_file)
     else:
-        out_dir = output_dir
+        out_dir = op.abspath(output_dir)
     clips_dir = op.join(out_dir, fname)
     if not op.isdir(out_dir):
         mkdir(out_dir)
