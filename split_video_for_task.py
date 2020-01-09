@@ -77,6 +77,7 @@ def build_script(episode_file, output_dir=None):
     for i_run, split_times in enumerate(episode_split_times):
         # Run-wise split file
         clip_name = '{0}R{1:02d}'.format(fname, i_run+1)
+        script += '#Processing {}'.format(clip_name)
         run_file_nondrc = op.join(clips_dir, 'nondrc_{}.mp4'.format(clip_name))
         # Run-wise split file after dynamic range compression
         run_file_drc = op.join(clips_dir, 'drc_{}.mp4'.format(clip_name))
