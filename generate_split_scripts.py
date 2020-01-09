@@ -57,12 +57,12 @@ def build_script(episode_file, output_dir=None):
     with open('split_times.json', 'r') as fo:
         all_split_times = json.load(fo)
 
+    fname = op.splitext(op.basename(episode_file))[0]
     episode_split_times = all_split_times[fname]
+    script_file = 'scripts/run_{}.sh'.format(fname)
     script = ''
 
     mp4_file = episode_file.replace('.mp4', '.mp4')
-    fname = op.splitext(op.basename(episode_file))[0]
-    script_file = 'scripts/run_{}.sh'.format(fname)
     if output_dir is None:
         out_dir = op.dirname(episode_file)
     else:
