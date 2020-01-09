@@ -1,6 +1,6 @@
 #!/bin/bash
 #---Number of cores
-#SBATCH -c 1
+#SBATCH -c 2
 
 #---Job's name in SLURM system
 #SBATCH -J S01E05
@@ -22,4 +22,4 @@ export OMP_NUM_THREADS=$NPROCS
 . $MODULESHOME/../global/profile.modules
 module load singularity-3
 
-singularity exec /scratch/tsalo006/stranger-things/ffmpeg.sif /scratch/tsalo006/stranger-things/scripts/run_S01E05.sh
+singularity exec --cleanenv /scratch/tsalo006/stranger-things/ffmpeg.sif /scratch/tsalo006/stranger-things/scripts/run_S01E05.sh
