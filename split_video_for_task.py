@@ -120,7 +120,7 @@ def build_script(episode_file, output_dir=None):
             script += '#Skipping run split. File already exists.\n'
 
         if not op.isfile(run_file_drc):
-            cmd += '#Performing dynamic range compression\n'
+            script += '#Performing dynamic range compression\n'
             cmd = ('ffmpeg -i {run_file_nondrc} -filter_complex '
                    '"[0:a]compand=.3|.3:1|1:-90/-60|-60/-40|-40/-30|-20/-20:6:0'
                    ':-90:0.2[audio]" -map 0:v -map "[audio]" -codec:v copy '
@@ -131,6 +131,7 @@ def build_script(episode_file, output_dir=None):
             script += '#Skipping dynamic range compression. File already exists\n'
 
         if not op.isfile(run_file_final):
+            script += '#Downsampling for PsychoPy compatibility\n'
             cmd = ('ffmpeg -i {run_file_drc} -codec:v libx264 -crf 0 -preset '
                    'veryslow -ar 44100 {run_file_final}').format(
                         run_file_drc=run_file_drc, run_file_final=run_file_final)
