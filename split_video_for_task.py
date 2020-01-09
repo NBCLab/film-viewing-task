@@ -46,7 +46,7 @@ def build_script(episode_file, output_dir=None):
     """
     episode_file = op.abspath(episode_file)
     with open('split_times.json', 'r') as fo:
-        split_times = json.load(fo)
+        all_split_times = json.load(fo)
 
     mp4_file = episode_file.replace('.mp4', '.mp4')
     fname = op.splitext(op.basename(episode_file))[0]
@@ -58,7 +58,7 @@ def build_script(episode_file, output_dir=None):
     if not op.isdir(out_dir):
         mkdir(out_dir)
 
-    episode_split_times = split_times[fname]
+    episode_split_times = all_split_times[fname]
     script = ''
 
     if op.isdir(clips_dir):
@@ -67,7 +67,7 @@ def build_script(episode_file, output_dir=None):
         mkdir(clips_dir)
 
     if not op.isfile(mp4_file):
-        print('\n\n\nConverting to MP4\n\n\n')
+        script += '#Converting to MP4\n'
         # convert video
         cmd = ('ffmpeg -i {episode_file} -q:v 1 -vcodec mpeg4 '
                '{mp4_file}').format(
@@ -82,9 +82,6 @@ def build_script(episode_file, output_dir=None):
         run_file_drc = op.join(clips_dir, 'drc_{}.mp4'.format(clip_name))
         # Run-wise split file after dynamic range compression and downsampling
         run_file_final = op.join(clips_dir, '{}.mp4'.format(clip_name))
-        if op.isfile(run_file_final):
-            print('Skipping {}. Already exists.'.format(clip_name))
-            continue
 
         if isinstance(split_times[0], tuple) and not op.isfile(run_file_nondrc):
             # split and merge
@@ -92,7 +89,7 @@ def build_script(episode_file, output_dir=None):
                           for j_clip in range(len(split_times))]
 
             for j_clip, clip_split_times in enumerate(split_times):
-                print('Splitting video')
+                script += '#Splitting video\n'
                 dur = clip_split_times[1] - clip_split_times[0]
                 cmd = ('ffmpeg -ss {start_time} -i {video_file} -t {duration} '
                        '{clip_file}').format(
@@ -100,7 +97,7 @@ def build_script(episode_file, output_dir=None):
                             video_file=mp4_file, clip_file=temp_files[j_clip])
                 script += cmd + '\n\n'
 
-            print('Merging clips')
+            script += '#Merging clips\n'
             merge_list_file = op.join(clips_dir, '{}_merge_list.txt'.format(clip_name))
             with open(merge_list_file, 'w') as fo:
                 temp_str = '\n'.join(["file '{}'".format(tf) for tf in temp_files])
@@ -112,7 +109,7 @@ def build_script(episode_file, output_dir=None):
             script += cmd + '\n\n'
         elif not op.isfile(run_file_nondrc):
             # split
-            print('Splitting video')
+            script += '#Splitting video\n'
             dur = split_times[1] - split_times[0]
             cmd = ('ffmpeg -ss {start_time} -i {episode_file} -t {duration} '
                    '{run_file_nondrc}').format(
@@ -120,10 +117,10 @@ def build_script(episode_file, output_dir=None):
                         episode_file=mp4_file, run_file_nondrc=run_file_nondrc)
             script += cmd + '\n\n'
         else:
-            script += '#Skipping run split. File already exists.\n\n'
+            script += '#Skipping run split. File already exists.\n'
 
         if not op.isfile(run_file_drc):
-            print('\n\n\nPerforming dynamic range compression\n')
+            cmd += '#Performing dynamic range compression\n'
             cmd = ('ffmpeg -i {run_file_nondrc} -filter_complex '
                    '"[0:a]compand=.3|.3:1|1:-90/-60|-60/-40|-40/-30|-20/-20:6:0'
                    ':-90:0.2[audio]" -map 0:v -map "[audio]" -codec:v copy '
@@ -131,7 +128,7 @@ def build_script(episode_file, output_dir=None):
                         run_file_nondrc=run_file_nondrc, run_file_drc=run_file_drc)
             script += cmd + '\n\n'
         else:
-            script += '#Skipping dynamic range compression. File already exists\n\n'
+            script += '#Skipping dynamic range compression. File already exists\n'
 
         if not op.isfile(run_file_final):
             cmd = ('ffmpeg -i {run_file_drc} -codec:v libx264 -crf 0 -preset '
