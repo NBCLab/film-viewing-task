@@ -52,7 +52,7 @@ def build_script(episode_file, output_dir=None):
     (split_times.json).
     """
     with open('split_times.json', 'r') as fo:
-        split_times = json.read(fo)
+        split_times = json.load(fo)
 
     mp4_file = episode_file.replace('.mp4', '.mp4')
     fname = op.splitext(op.basename(episode_file))[0]
