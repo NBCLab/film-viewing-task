@@ -9,17 +9,10 @@ Singularity image built with the following command because later versions failed
 singularity build ffmpeg.sif docker://jrottenberg/ffmpeg:3.3-alpine
 """
 
-import os
 from os import mkdir
 import os.path as op
 import json
-from glob import glob
-import subprocess
-from shutil import copyfile
 import argparse
-
-import numpy as np
-import pandas as pd
 
 
 def _get_parser():
@@ -90,7 +83,7 @@ def build_script(episode_file, output_dir=None):
         # Run-wise split file after dynamic range compression and downsampling
         run_file_final = op.join(clips_dir, '{}.mp4'.format(clip_name))
         if op.isfile(run_file_final):
-            print('Skipping {}. Already exists.'.format(clip_name)
+            print('Skipping {}. Already exists.'.format(clip_name))
             continue
 
         if isinstance(split_times[0], tuple) and not op.isfile(run_file_nondrc):
