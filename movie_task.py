@@ -10,13 +10,10 @@ from datetime import datetime
 import pandas as pd
 import numpy as np
 
+import serial
+
 import psychopy
-import psychopy.core  # pylint: disable=E0401
-import psychopy.visual  # pylint: disable=E0401
-import psychopy.event  # pylint: disable=E0401
-import psychopy.gui  # pylint: disable=E0401
-import psychopy.sound  # pylint: disable=E0401
-from psychopy import visual, core, data, logging
+from psychopy import core, event, gui, visual, sound, data, logging
 from psychopy.constants import STARTED, STOPPED  # pylint: disable=E0401
 
 T_R = 1.5
@@ -28,9 +25,9 @@ def close_on_esc(win):
     """
     Closes window if escape is pressed
     """
-    if 'escape' in psychopy.event.getKeys():
+    if 'escape' in event.getKeys():
         win.close()
-        psychopy.core.quit()
+        core.quit()
 
 
 def draw(win, stim, duration):
@@ -39,21 +36,21 @@ def draw(win, stim, duration):
 
     Parameters
     ----------
-    win : (psychopy.visual.Window)
+    win : (visual.Window)
     stim : object with `.draw()` method
     duration : (numeric) duration in seconds to display the stimulus
     """
     # Use a busy loop instead of sleeping so we can exit early if need be.
     start_time = time.time()
-    response = psychopy.event.BuilderKeyResponse()
+    response = event.BuilderKeyResponse()
     response.tStart = start_time
     response.frameNStart = 0
     response.status = STARTED
     window.callOnFlip(response.clock.reset)
-    psychopy.event.clearEvents(eventType='keyboard')
+    event.clearEvents(eventType='keyboard')
     while time.time() - start_time < duration:
         stim.draw()
-        keys = psychopy.event.getKeys(keyList=['1', '2'],
+        keys = event.getKeys(keyList=['1', '2'],
                                       timeStamped=trials_clock)
         if keys:
             response.keys.extend(keys)
@@ -71,21 +68,24 @@ if __name__ == '__main__':
 
     exp_info = {'subject': '',
                 'session': '',
-                'run': ''}
-    dlg = psychopy.gui.DlgFromDict(
+                'run': '',
+                'BioPac': ['Yes', 'No']}
+    dlg = gui.DlgFromDict(
         exp_info,
         title='Episode {0} Run {1}'.format(exp_info['session'], exp_info['run']),
-        order=['subject', 'session'])
-    window = psychopy.visual.Window(
+        order=['subject', 'session', 'run', 'BioPac'])
+    window = visual.Window(
         size=(800, 600), fullscr=True, monitor='testMonitor', units='deg',
         # size=(500, 400), fullscr=False, monitor='testMonitor', units='deg',
         allowStencil=False, allowGUI=False, color='black')
     fps = 1 / window.monitorFramePeriod
     if not dlg.OK:
-        psychopy.core.quit()
+        core.quit()
 
-    config_file = 'stranger_things_config.tsv'
-    config_df = pd.read_csv(config_file, sep='\t')
+    if exp_info['BioPac'] == 'Yes':
+        ser = serial.Serial('COM2', 115200)
+
+    config_df = pd.read_table('stranger_things_config.tsv')
     file_ = config_df.loc[(config_df['session'] == int(exp_info['session'])) &
                           (config_df['run'] == int(exp_info['run'])), 'file'].values[0]
     episode = op.splitext(op.basename(file_))[0][:6]  # Episode number
@@ -97,7 +97,7 @@ if __name__ == '__main__':
                     episode,
                     exp_info['run'].zfill(2))
 
-    video = psychopy.visual.MovieStim(
+    video = visual.MovieStim(
         window,
         filename=file_,
         name=episode)
@@ -108,7 +108,7 @@ if __name__ == '__main__':
     run_end_fix_dur = END_FIX_DUR + diff
 
     # Waiting for scanner
-    waiting = psychopy.visual.TextStim(
+    waiting = visual.TextStim(
         window,
         """\
 You are about to watch a video.
@@ -116,14 +116,14 @@ You are about to watch a video.
         name='instructions',
         color='white')
 
-    end_screen = psychopy.visual.TextStim(
+    end_screen = visual.TextStim(
         window,
         "The task is now complete.",
         name='end_screen',
         color='white')
 
     # Rest between tasks
-    crosshair = psychopy.visual.TextStim(
+    crosshair = visual.TextStim(
         window,
         '+',
         height=2,
@@ -136,11 +136,18 @@ You are about to watch a video.
     # Scanner runtime
     # ---------------
     # Wait for trigger from scanner.
+    if exp_info['BioPac'] == 'Yes':
+        ser.write('RR')
+
     waiting.draw()
     window.flip()
-    psychopy.event.waitKeys(keyList=['5'])
-    trials_clock = psychopy.core.Clock()
-    routine_clock = psychopy.core.Clock()
+
+    event.waitKeys(keyList=['5'])
+    if exp_info['BioPac'] == 'Yes':
+        ser.write('FF')
+
+    trials_clock = core.Clock()
+    routine_clock = core.Clock()
 
     # Start with fixation
     startTimeFix1 = routine_clock.getTime()
@@ -165,9 +172,13 @@ You are about to watch a video.
     startTimeFix2 = routine_clock.getTime()
     durationVid = startTimeFix2 - startTimeVid
 
-    # End with fixation
+    # End with fixation. Scanner should stop after this.
     draw(win=window, stim=crosshair, duration=run_end_fix_dur)
     window.flip()
+
+    if exp_info['BioPac'] == 'Yes':
+        ser.write('00')
+        ser.close()
 
     startTimeEnd = routine_clock.getTime()
     durationFix2 = startTimeEnd - startTimeFix2
