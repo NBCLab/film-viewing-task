@@ -2,8 +2,10 @@
 Heavily adapted from https://github.com/courtois-neuromod/task_stimuli/blob/714cdbceb4991c9eab43a33e34aae0a2b148548d/src/tasks/video.py
 Make sure to give credit to the authors.
 """
+import re
 import os
 import os.path as op
+from glob import glob
 import sys
 import time
 from datetime import datetime
@@ -19,6 +21,7 @@ from psychopy.constants import STARTED, STOPPED  # pylint: disable=E0401
 T_R = 1.5
 START_FIX_DUR = T_R * 2
 END_FIX_DUR = T_R * 3
+END_SCREEN_DURATION = 2
 
 
 def close_on_esc(win):
@@ -30,7 +33,7 @@ def close_on_esc(win):
         core.quit()
 
 
-def draw(win, stim, duration):
+def draw(win, stim, duration, clock):
     """
     Draw stimulus for a given duration.
 
@@ -51,7 +54,7 @@ def draw(win, stim, duration):
     while time.time() - start_time < duration:
         stim.draw()
         keys = event.getKeys(keyList=['1', '2'],
-                                      timeStamped=trials_clock)
+                                      timeStamped=clock)
         if keys:
             response.keys.extend(keys)
             response.rt.append(response.clock.getTime())
@@ -62,22 +65,44 @@ def draw(win, stim, duration):
 
 
 if __name__ == '__main__':
+    # Ensure that relative paths start from the same directory as this script
+    try:
+        script_dir = op.dirname(op.abspath(__file__)).decode(sys.getfilesystemencoding())
+    except AttributeError:
+        script_dir = op.dirname(op.abspath(__file__))
+
     # Collect user input
     # ------------------
     # Remember to turn fullscr to True for the real deal.
+    stim_dir = op.abspath(op.join(script_dir, 'stimuli'))
 
-    exp_info = {'subject': '',
-                'session': '',
-                'run': '',
-                'BioPac': ['Yes', 'No']}
+    all_stimuli = []
+    for root, dirs, files in os.walk(stim_dir, topdown=True):
+        mp4s = [op.join(root, f) for f in files if f.endswith('mp4')]
+        all_stimuli += mp4s
+
+    all_stim_dirs = sorted(list(set([op.dirname(f) for f in all_stimuli])))
+    stimuli_groups = [sd.replace(stim_dir, '').lstrip(op.sep) for sd in all_stim_dirs]
+
+    exp_info = {'Subject': '',
+                'Session': '',
+                'Film': stimuli_groups,
+                'BioPac': ['No', 'Yes']}
     dlg = gui.DlgFromDict(
         exp_info,
-        title='Episode {0} Run {1}'.format(exp_info['session'], exp_info['run']),
-        order=['subject', 'session', 'run', 'BioPac'])
+        title='Session {0}'.format(exp_info['Session']),
+        order=['Subject', 'Session', 'Film', 'BioPac'])
     window = visual.Window(
-        size=(800, 600), fullscr=True, monitor='testMonitor', units='deg',
-        # size=(500, 400), fullscr=False, monitor='testMonitor', units='deg',
-        allowStencil=False, allowGUI=False, color='black')
+        fullscr=False,
+        size=(800, 600),
+        monitor='testMonitor',
+        units='norm',
+        allowStencil=False,
+        allowGUI=False,
+        color='black',
+        colorSpace='rgb',
+        blendMode='avg',
+        useFBO=True)
     fps = 1 / window.monitorFramePeriod
     if not dlg.OK:
         core.quit()
@@ -85,29 +110,18 @@ if __name__ == '__main__':
     if exp_info['BioPac'] == 'Yes':
         ser = serial.Serial('COM2', 115200)
 
-    config_df = pd.read_table('stranger_things_config.tsv')
-    file_ = config_df.loc[(config_df['session'] == int(exp_info['session'])) &
-                          (config_df['run'] == int(exp_info['run'])), 'file'].values[0]
-    episode = op.splitext(op.basename(file_))[0][:6]  # Episode number
+    video_files = sorted(glob(op.join(stim_dir, exp_info['Film'], '*.mp4')))
+    stim_dict = {}
+    for video_file in video_files:
+        runs_found = re.findall('(R[0-9]+)\.', op.basename(video_file))
+        if not runs_found:
+            raise Exception('Run number could not be found for {}'.format(video_file))
+        elif len(runs_found) > 1:
+            raise Exception('Run number could not be determined for {}'.format(video_file))
+        else:
+            run_num = runs_found[0][1:]  # drop the R
+            stim_dict[run_num] = video_file
 
-    filename = ('data/sub-{0}_ses-{1}_task-StrangerThings{2}'
-                '_run-{3}_events').format(
-                    exp_info['subject'].zfill(2),
-                    exp_info['session'].zfill(2),
-                    episode,
-                    exp_info['run'].zfill(2))
-
-    video = visual.MovieStim(
-        window,
-        filename=file_,
-        name=episode)
-
-    # Determine duration of ending fixation.
-    upper = np.ceil(video.duration / T_R) * T_R
-    diff = upper - video.duration
-    run_end_fix_dur = END_FIX_DUR + diff
-
-    # Waiting for scanner
     waiting = visual.TextStim(
         window,
         """\
@@ -115,14 +129,11 @@ You are about to watch a video.
   Please keep your eyes open.""",
         name='instructions',
         color='white')
-
     end_screen = visual.TextStim(
         window,
         "The task is now complete.",
         name='end_screen',
         color='white')
-
-    # Rest between tasks
     crosshair = visual.TextStim(
         window,
         '+',
@@ -130,75 +141,110 @@ You are about to watch a video.
         name='crosshair',
         color='white')
 
-    if not os.path.exists('data'):
-        os.makedirs('data')
+    if not op.exists(op.join(script_dir, 'data')):
+        os.makedirs(op.join(script_dir, 'data'))
 
-    # Scanner runtime
-    # ---------------
-    # Wait for trigger from scanner.
-    if exp_info['BioPac'] == 'Yes':
-        ser.write('RR')
+    run_clock = core.Clock()
 
-    waiting.draw()
-    window.flip()
+    for run_label, video_file in stim_dict.items():
+        COLUMNS = ['onset', 'duration', 'trial_type', 'stim_file']
+        run_data = {c: [] for c in COLUMNS}
+        video_filename = op.basename(video_file)
+        task_label = video_filename.split('R{}'.format(run_label))[0]
+        filename = op.join(
+            script_dir, 'data',
+            'sub-{0}_ses-{1}_task-{2}_run-{3}_events'.format(
+                exp_info['Subject'].zfill(2),
+                exp_info['Session'].zfill(2),
+                task_label, run_label))
+        outfile = filename + '.tsv'
+        logfile = logging.LogFile(filename+'.log', level=logging.EXP)
+        logging.console.setLevel(logging.WARNING)  # this outputs to the screen, not a file
 
-    event.waitKeys(keyList=['5'])
-    if exp_info['BioPac'] == 'Yes':
-        ser.write('FF')
+        # Reset BioPac
+        if exp_info['BioPac'] == 'Yes':
+            ser.write('RR')
+        video = visual.MovieStim(
+            window,
+            filename=video_file,
+            name=exp_info['Film'])
 
-    trials_clock = core.Clock()
-    routine_clock = core.Clock()
+        # Determine duration of ending fixation.
+        upper = np.ceil(video.duration / T_R) * T_R
+        diff = upper - video.duration
+        run_end_fix_dur = END_FIX_DUR + diff
 
-    # Start with fixation
-    startTimeFix1 = routine_clock.getTime()
-    draw(win=window, stim=crosshair, duration=START_FIX_DUR)
-
-    # Now the video
-    startTimeVid = routine_clock.getTime()
-    durationFix1 = startTimeVid - startTimeFix1
-
-    # not sure what impact this has, if any
-    video.autoDraw = False
-
-    n_frames = int(np.ceil(video.duration * fps))
-    # n_frames = int(np.ceil(10 * fps))  # test with 10 seconds
-    for t in range(n_frames):
-        video.draw(window)
+        # Scanner runtime
+        # ---------------
+        # Wait for trigger from scanner.
+        waiting.draw()
         window.flip()
-        close_on_esc(window)
+        event.waitKeys(keyList=['5'])
 
-    video.pause()
+        # Start recording
+        if exp_info['BioPac'] == 'Yes':
+            ser.write('FF')
 
-    startTimeFix2 = routine_clock.getTime()
-    durationVid = startTimeFix2 - startTimeVid
+        run_clock.reset()
 
-    # End with fixation. Scanner should stop after this.
-    draw(win=window, stim=crosshair, duration=run_end_fix_dur)
-    window.flip()
+        # Start with fixation
+        startTimeFix1 = run_clock.getTime()
+        draw(win=window, stim=crosshair, duration=START_FIX_DUR, clock=run_clock)
 
+        # Now the video
+        startTimeVid = run_clock.getTime()
+        durationFix1 = startTimeVid - startTimeFix1
+
+        # not sure what impact this has, if any
+        video.autoDraw = False
+
+        n_frames = int(np.ceil(video.duration * fps))
+        # n_frames = int(np.ceil(10 * fps))  # test with 10 seconds
+        for t in range(n_frames):
+            video.draw(window)
+            window.flip()
+            close_on_esc(window)
+
+        video.pause()
+
+        startTimeFix2 = run_clock.getTime()
+        durationVid = startTimeFix2 - startTimeVid
+
+        # End with fixation. Scanner should stop after this.
+        draw(win=window, stim=crosshair, duration=run_end_fix_dur, clock=run_clock)
+        window.flip()
+
+        startTimeEnd = run_clock.getTime()
+        durationFix2 = startTimeEnd - startTimeFix2
+
+        # Compile file
+        run_data['onset'] = [startTimeFix1, startTimeVid, startTimeFix2]
+        run_data['duration'] = [durationFix1, durationVid, durationFix2]
+        run_data['trial_type'] = ['fixation', 'film', 'fixation']
+        run_data['stim_file'] = ['n/a', video_file.split('/stimuli/')[1], 'n/a']
+
+        # Save output file
+        run_frame = pd.DataFrame(run_data)
+        run_frame.to_csv(outfile, line_terminator='\n', sep='\t', na_rep='n/a', index=False)
+
+        if exp_info['BioPac'] == 'Yes':
+            ser.write('00')
+
+        print('Total duration of run: {}'.format(run_clock.getTime()))
+
+    # end run_loop
+
+    # Shut down serial port connection
     if exp_info['BioPac'] == 'Yes':
-        ser.write('00')
         ser.close()
 
-    startTimeEnd = routine_clock.getTime()
-    durationFix2 = startTimeEnd - startTimeFix2
-
     # Final note that task is over. Runs after scan ends.
-    draw(win=window, stim=end_screen, duration=2)
+    draw(win=window, stim=end_screen, duration=END_SCREEN_DURATION, clock=run_clock)
     window.flip()
 
-    # Calculate time and duration just in case we want them in the future
-    endTime = routine_clock.getTime()
-    durationEnd = endTime - startTimeEnd
+    logging.flush()
 
-    # Compile file
-    COLUMNS = ['onset', 'duration', 'trial_type', 'stim_file']
-    data = [[startTimeFix1, durationFix1, 'fixation', 'n/a'],
-            [startTimeVid, durationVid, 'film', file_],
-            [startTimeFix2, durationFix2, 'fixation', 'n/a']]
-
-    out_frame = pd.DataFrame(columns=COLUMNS, data=data)
-    out_frame.to_csv(filename + '.tsv', sep='\t', na_rep='n/a', index=False)
-
+    # make sure everything is closed down
     del(waiting, end_screen, crosshair)
     window.close()
+    core.quit()
