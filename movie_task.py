@@ -169,11 +169,6 @@ You are about to watch a video.
             filename=video_file,
             name=exp_info['Film'])
 
-        # Determine duration of ending fixation.
-        upper = np.ceil(video.duration / T_R) * T_R
-        diff = upper - video.duration
-        run_end_fix_dur = END_FIX_DUR + diff
-
         # Scanner runtime
         # ---------------
         # Wait for trigger from scanner.
@@ -211,6 +206,10 @@ You are about to watch a video.
         durationVid = startTimeFix2 - startTimeVid
 
         # End with fixation. Scanner should stop after this.
+        # Determine duration of ending fixation.
+        upper = np.ceil(startTimeFix2 / T_R) * T_R
+        diff = upper - startTimeFix2
+        run_end_fix_dur = END_FIX_DUR + diff
         draw(win=window, stim=crosshair, duration=run_end_fix_dur, clock=run_clock)
         window.flip()
 
@@ -227,11 +226,11 @@ You are about to watch a video.
         run_frame = pd.DataFrame(run_data)
         run_frame.to_csv(outfile, line_terminator='\n', sep='\t', na_rep='n/a', index=False)
 
+        # Stop recording
         if exp_info['BioPac'] == 'Yes':
             ser.write('00')
 
         print('Total duration of run: {}'.format(run_clock.getTime()))
-
     # end run_loop
 
     # Shut down serial port connection
