@@ -224,7 +224,8 @@ You are about to watch a video.
 
         # Save output file
         run_frame = pd.DataFrame(run_data)
-        run_frame.to_csv(outfile, line_terminator='\n', sep='\t', na_rep='n/a', index=False)
+        run_frame.to_csv(outfile, line_terminator='\n', sep='\t', na_rep='n/a',
+                         index=False, float_format='%.2f')
 
         # Stop recording
         if exp_info['BioPac'] == 'Yes':
