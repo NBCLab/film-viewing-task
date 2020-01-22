@@ -3,13 +3,13 @@
 #SBATCH -c 2
 
 #---Job's name in SLURM system
-#SBATCH -J S01E01
+#SBATCH -J S01E06
 
 #---Error file
-#SBATCH -e eS01E01
+#SBATCH -e eS01E06
 
 #---Output file
-#SBATCH -o oS01E01
+#SBATCH -o oS01E06
 
 #---Queue name
 #SBATCH --account iacc_nbc
@@ -22,4 +22,5 @@ export OMP_NUM_THREADS=$NPROCS
 . $MODULESHOME/../global/profile.modules
 module load singularity-3
 
-singularity exec --cleanenv /scratch/tsalo006/stranger-things/ffmpeg.sif /scratch/tsalo006/stranger-things/scripts/run_S01E01.sh
+singularity exec --cleanenv /scratch/tsalo006/stranger-things/ffmpeg.sif \
+  /scratch/tsalo006/stranger-things/stimulus_preparation/scripts/run_S01E06.sh

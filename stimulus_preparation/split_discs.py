@@ -1,7 +1,8 @@
 # coding: utf-8
 """
-Scene detection:
-scenedetect --input ../S01E05.m4v --stats S01E05_stats.csv detect-content --threshold 27 list-scenes
+Splits discs into episodes.
+
+After that, users can use generate_split_scripts.py to split episodes into runs.
 """
 
 import os

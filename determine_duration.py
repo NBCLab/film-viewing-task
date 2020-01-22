@@ -1,3 +1,6 @@
+"""
+Estimate scan run durations from video clip durations.
+"""
 from glob import glob
 import os.path as op
 from moviepy.editor import VideoFileClip

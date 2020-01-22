@@ -111,6 +111,11 @@ if __name__ == '__main__':
         ser = serial.Serial('COM2', 115200)
 
     video_files = sorted(glob(op.join(stim_dir, exp_info['Film'], '*.mp4')))
+
+    # Grab first folder name and clean it up for the taskname
+    taskname = exp_info['Film'].split(op.sep)[0].replace('_', '').replace('-', '')
+
+    # Get run numbers and connect them to stimuli
     stim_dict = {}
     for video_file in video_files:
         runs_found = re.findall('(R[0-9]+)\.', op.basename(video_file))
@@ -149,14 +154,12 @@ You are about to watch a video.
     for run_label, video_file in stim_dict.items():
         COLUMNS = ['onset', 'duration', 'trial_type', 'stim_file']
         run_data = {c: [] for c in COLUMNS}
-        video_filename = op.basename(video_file)
-        task_label = video_filename.split('R{}'.format(run_label))[0]
         filename = op.join(
             script_dir, 'data',
             'sub-{0}_ses-{1}_task-{2}_run-{3}_events'.format(
                 exp_info['Subject'].zfill(2),
                 exp_info['Session'].zfill(2),
-                task_label, run_label))
+                taskname, run_label))
         outfile = filename + '.tsv'
         logfile = logging.LogFile(filename+'.log', level=logging.EXP)
         logging.console.setLevel(logging.WARNING)  # this outputs to the screen, not a file

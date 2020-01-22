@@ -22,4 +22,5 @@ export OMP_NUM_THREADS=$NPROCS
 . $MODULESHOME/../global/profile.modules
 module load singularity-3
 
-singularity exec --cleanenv /scratch/tsalo006/stranger-things/ffmpeg.sif /scratch/tsalo006/stranger-things/scripts/run_S01E05.sh
+singularity exec --cleanenv /scratch/tsalo006/stranger-things/ffmpeg.sif \
+  /scratch/tsalo006/stranger-things/stimulus_preparation/scripts/run_S01E05.sh
