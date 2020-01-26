@@ -1,4 +1,4 @@
-# stranger-things-task
+# film-viewing-task
 A naturalistic film viewing task in PsychoPy for the Dense Investigation of Variability of Affect (DIVA) study.
 
 ## Requirements
