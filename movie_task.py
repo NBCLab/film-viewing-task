@@ -193,19 +193,18 @@ You are about to watch a video.
         startTimeVid = run_clock.getTime()
         durationFix1 = startTimeVid - startTimeFix1
 
-        # not sure what impact this has, if any
+        # If set to True, seems to not play video at all
         video.autoDraw = False
 
         n_frames = int(np.ceil(video.duration * fps))
         # n_frames = int(np.ceil(10 * fps))  # test with 10 seconds
         for t in range(n_frames):
-            video.draw(window)
+            video.draw()
             window.flip()
             close_on_esc(window)
-
+        startTimeFix2 = run_clock.getTime()
         video.pause()
 
-        startTimeFix2 = run_clock.getTime()
         durationVid = startTimeFix2 - startTimeVid
 
         # End with fixation. Scanner should stop after this.
