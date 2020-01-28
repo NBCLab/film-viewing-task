@@ -68,7 +68,7 @@ def draw(win, stim, duration, clock):
     response.tStart = start_time
     response.frameNStart = 0
     response.status = STARTED
-    window.callOnFlip(response.clock.reset)
+    win.callOnFlip(response.clock.reset)
     event.clearEvents(eventType='keyboard')
     while time.time() - start_time < duration:
         stim.draw()
@@ -112,7 +112,7 @@ if __name__ == '__main__':
         title='Session {0}'.format(exp_info['Session']),
         order=['Subject', 'Session', 'Film', 'BioPac'])
     window = visual.Window(
-        fullscr=False,
+        fullscr=True,
         size=(800, 600),
         monitor='testMonitor',
         units='norm',
