@@ -106,7 +106,7 @@ if __name__ == '__main__':
     exp_info = {'Subject': '',
                 'Session': '',
                 'Film': stimuli_groups,
-                'BioPac': ['No', 'Yes']}
+                'BioPac': ['Yes', 'No']}
     dlg = gui.DlgFromDict(
         exp_info,
         title='Session {0}'.format(exp_info['Session']),
@@ -161,7 +161,7 @@ You are about to watch a video.
     crosshair = visual.TextStim(
         window,
         '+',
-        height=2,
+        height=0.15,
         name='crosshair',
         color='white')
 
@@ -190,6 +190,10 @@ You are about to watch a video.
             window,
             filename=video_file,
             name=exp_info['Film'])
+        width, height = video.size
+        new_height = 600
+        new_shape = (new_height * (width / height), new_height)
+        video.setSize(new_shape)
 
         # Scanner runtime
         # ---------------
@@ -221,6 +225,9 @@ You are about to watch a video.
             close_on_esc(window)
         startTimeFix2 = run_clock.getTime()
         video.pause()
+
+        # Unset stim sizes so they don't pass on to the next trial
+        video.size = None
 
         durationVid = startTimeFix2 - startTimeVid
 
