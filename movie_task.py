@@ -170,7 +170,8 @@ You are about to watch a video.
 
     run_clock = core.Clock()
 
-    for run_label, video_file in stim_dict.items():
+    for run_label in sorted(stim_dict.keys()):
+        video_file = stim_dict[run_label]
         COLUMNS = ['onset', 'duration', 'trial_type', 'stim_file']
         run_data = {c: [] for c in COLUMNS}
         filename = op.join(
