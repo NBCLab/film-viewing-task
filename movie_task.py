@@ -97,7 +97,7 @@ if __name__ == '__main__':
 
     all_stimuli = []
     for root, dirs, files in os.walk(stim_dir, topdown=True):
-        mp4s = [op.join(root, f) for f in files if f.endswith('mp4')]
+        mp4s = [op.join(root, f) for f in files if (f.endswith('mp4') or f.endswith('mkv'))]
         all_stimuli += mp4s
 
     all_stim_dirs = sorted(list(set([op.dirname(f) for f in all_stimuli])))
@@ -129,7 +129,8 @@ if __name__ == '__main__':
     if exp_info['BioPac'] == 'Yes':
         ser = serial.Serial('COM2', 115200)
 
-    video_files = sorted(glob(op.join(stim_dir, exp_info['Film'], '*.mp4')))
+    video_files = sorted(glob(op.join(stim_dir, exp_info['Film'], '*.mp4'))) +\
+                  sorted(glob(op.join(stim_dir, exp_info['Film'], '*.mkv')))
 
     # Grab first folder name and clean it up for the taskname
     taskname = exp_info['Film'].split(op.sep)[0].replace('_', '').replace('-', '')
