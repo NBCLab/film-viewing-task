@@ -106,7 +106,8 @@ if __name__ == '__main__':
     exp_info = {'Subject': '',
                 'Session': '',
                 'Film': stimuli_groups,
-                'BioPac': ['Yes', 'No']}
+                'BioPac': ['Yes', 'No'],
+                'Start at Run': 1}
     dlg = gui.DlgFromDict(
         exp_info,
         title='Session {0}'.format(exp_info['Session']),
@@ -147,6 +148,13 @@ if __name__ == '__main__':
             run_num = runs_found[0][1:]  # drop the R
             stim_dict[run_num] = video_file
 
+    # Skip some runs if you want
+    all_runs = sorted(stim_dict.keys())
+    if exp_info['Start at Run']:
+        all_runs = [r for r in all_runs if int(r) >= int(exp_info['Start at Run'])]
+        if not len(all_runs):
+            raise Exception('No runs remaining!')
+
     waiting = visual.TextStim(
         window,
         """\
@@ -171,7 +179,7 @@ You are about to watch a video.
 
     run_clock = core.Clock()
 
-    for run_label in sorted(stim_dict.keys()):
+    for run_label in all_runs:
         video_file = stim_dict[run_label]
         COLUMNS = ['onset', 'duration', 'trial_type', 'stim_file']
         run_data = {c: [] for c in COLUMNS}
@@ -193,9 +201,13 @@ You are about to watch a video.
             filename=video_file,
             name=exp_info['Film'])
         width, height = video.size
-        new_height = 600
-        new_shape = (new_height * (width / height), new_height)
-        video.setSize(new_shape)
+        aspect_ratio = width / height
+        min_ratio =  min(
+            window.size[0] / width,
+            aspect_ratio * window.size[1] / width)
+        new_width = min_ratio * width
+        new_height = min_ratio * width / aspect_ratio
+        video.setSize((new_width, new_height))
 
         # Scanner runtime
         # ---------------
@@ -227,9 +239,7 @@ You are about to watch a video.
             close_on_esc(window)
         startTimeFix2 = run_clock.getTime()
         video.pause()
-
-        # Unset stim sizes so they don't pass on to the next trial
-        video.size = None
+        window.flip()
 
         durationVid = startTimeFix2 - startTimeVid
 
@@ -248,7 +258,7 @@ You are about to watch a video.
         run_data['onset'] = [startTimeFix1, startTimeVid, startTimeFix2]
         run_data['duration'] = [durationFix1, durationVid, durationFix2]
         run_data['trial_type'] = ['fixation', 'film', 'fixation']
-        run_data['stim_file'] = ['n/a', video_file.split('/stimuli/')[1], 'n/a']
+        run_data['stim_file'] = ['n/a', video_file.split(op.sep+'stimuli'+op.sep)[1], 'n/a']
 
         # Save output file
         run_frame = pd.DataFrame(run_data)
