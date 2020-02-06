@@ -231,7 +231,8 @@ You are about to watch a video.
         # If set to True, seems to not play video at all
         video.autoDraw = False
 
-        n_frames = int(np.ceil(video.duration * fps))
+        # Floor is key.
+        n_frames = int(np.floor(video.duration * fps))
         # n_frames = int(np.ceil(10 * fps))  # test with 10 seconds
         for t in range(n_frames):
             video.draw()
