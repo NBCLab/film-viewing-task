@@ -2,6 +2,8 @@
 Heavily adapted from https://github.com/courtois-neuromod/task_stimuli/blob/714cdbceb4991c9eab43a33e34aae0a2b148548d/src/tasks/video.py
 Make sure to give credit to the authors.
 """
+from __future__ import division, print_function
+
 import re
 import os
 import os.path as op
@@ -97,7 +99,7 @@ if __name__ == '__main__':
 
     all_stimuli = []
     for root, dirs, files in os.walk(stim_dir, topdown=True):
-        mp4s = [op.join(root, f) for f in files if (f.endswith('mp4') or f.endswith('mkv'))]
+        mp4s = [op.join(root, f) for f in files if (f.endswith('mp4') or f.endswith('mkv') or f.endswith('avi'))]
         all_stimuli += mp4s
 
     all_stim_dirs = sorted(list(set([op.dirname(f) for f in all_stimuli])))
@@ -114,7 +116,6 @@ if __name__ == '__main__':
         order=['Subject', 'Session', 'Film', 'BioPac'])
     window = visual.Window(
         fullscr=True,
-        size=(800, 600),
         monitor='testMonitor',
         units='norm',
         allowStencil=False,
@@ -123,7 +124,7 @@ if __name__ == '__main__':
         colorSpace='rgb',
         blendMode='avg',
         useFBO=True)
-    fps = 1 / window.monitorFramePeriod
+    fps = 1. / window.monitorFramePeriod
     if not dlg.OK:
         core.quit()
 
@@ -131,6 +132,7 @@ if __name__ == '__main__':
         ser = serial.Serial('COM2', 115200)
 
     video_files = sorted(glob(op.join(stim_dir, exp_info['Film'], '*.mp4'))) +\
+                  sorted(glob(op.join(stim_dir, exp_info['Film'], '*.avi'))) +\
                   sorted(glob(op.join(stim_dir, exp_info['Film'], '*.mkv')))
 
     # Grab first folder name and clean it up for the taskname
@@ -190,8 +192,8 @@ You are about to watch a video.
                 exp_info['Session'].zfill(2),
                 taskname, run_label))
         outfile = filename + '.tsv'
-        logfile = logging.LogFile(filename+'.log', level=logging.EXP)
-        logging.console.setLevel(logging.WARNING)  # this outputs to the screen, not a file
+        logfile = logging.LogFile(filename+'.log', level=logging.INFO)
+        logging.console.setLevel(logging.INFO)  # this outputs to the screen, not a file
 
         # Reset BioPac
         if exp_info['BioPac'] == 'Yes':
@@ -199,7 +201,8 @@ You are about to watch a video.
         video = visual.MovieStim(
             window,
             filename=video_file,
-            name=exp_info['Film'])
+            name=exp_info['Film'],
+            volume=1.)
         width, height = video.size
         aspect_ratio = width / height
         min_ratio =  min(
@@ -232,13 +235,15 @@ You are about to watch a video.
         video.autoDraw = False
 
         # Floor is key.
-        n_frames = int(np.floor(video.duration * fps))
-        # n_frames = int(np.ceil(10 * fps))  # test with 10 seconds
+        n_frames = int(np.floor(video.duration * fps)) - 10
         for t in range(n_frames):
             video.draw()
             window.flip()
             close_on_esc(window)
+
+        logging.log(level=logging.INFO, msg='Complete at {} frames'.format(t))
         startTimeFix2 = run_clock.getTime()
+        logging.log(level=logging.INFO, msg='Duration is {}'.format(startTimeFix2))
         video.pause()
         window.flip()
 
